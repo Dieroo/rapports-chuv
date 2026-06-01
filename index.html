@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Rapports CHUV</title>
+
+  <!-- PWA / mobile -->
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <meta name="theme-color" content="#0F0F11" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Rapports" />
+  <link rel="apple-touch-icon" href="./assets/icons/icon-192.png" />
+
+  <link rel="icon" type="image/png" href="./assets/icons/icon-192.png" />
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="./styles/base.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Rendu par scripts/app.js -->
+    <noscript>
+      <p style="padding:1rem;color:#fff;background:#E2001A">
+        Cette application nécessite JavaScript. Activez-le dans votre navigateur.
+      </p>
+    </noscript>
+  </div>
+
+  <!-- Dexie d'abord (expose window.Dexie en non-module) -->
+  <script src="./scripts/lib/dexie.min.js"></script>
+
+  <!-- Puis l'app en ES module -->
+  <script type="module" src="./scripts/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,185 @@
+/* ===========================================================================
+   Rapports CHUV — Feuille de base
+   Slice 1.a : variables, reset, layout d'accueil minimal.
+   La typo IBM Plex sera embarquée en Slice ultérieure (1.d ou 6).
+   =========================================================================== */
+
+:root {
+  /* Couleurs — mode sombre par défaut, pensé usage nocturne */
+  --bg-app:        #0F0F11;
+  --bg-surface:    #1A1A1D;
+  --bg-elevated:   #232327;
+  --border:        #2A2A2E;
+  --text:          #F5F5F7;
+  --text-muted:    #8A8A8E;
+  --accent:        #E2001A;       /* rouge Securitas */
+  --accent-hover:  #C50016;
+  --success:       #4CAF50;
+  --warning:       #FFB74D;
+  --danger:        #E2001A;
+
+  /* Typographie — placeholder en system-ui, sera basculé sur IBM Plex Sans plus tard */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* Tailles */
+  --fs-base:   17px;        /* base lisible en fin de quart */
+  --fs-small:  14px;
+  --fs-h1:     1.5rem;
+  --fs-h2:     1.25rem;
+  --fs-h3:     1rem;
+
+  /* Espacements */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+
+  /* Coins arrondis */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+
+  /* Cibles tactiles min — Apple HIG */
+  --touch-target: 44px;
+
+  /* Transitions courtes uniquement */
+  --t-fast: 150ms ease;
+}
+
+/* === Reset minimal === */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  background: var(--bg-app);
+  color-scheme: dark;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--bg-app);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: 1.5;
+  min-height: 100dvh;
+  /* Évite le rebond / pull-to-refresh sur mobile */
+  overscroll-behavior-y: contain;
+}
+
+/* === Layout principal === */
+
+#app {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: env(safe-area-inset-top) var(--sp-4) env(safe-area-inset-bottom);
+}
+
+.app-header {
+  padding: var(--sp-5) 0 var(--sp-4);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--sp-5);
+}
+
+.app-header h1 {
+  font-size: var(--fs-h1);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.app-header .badge {
+  display: inline-block;
+  margin-top: var(--sp-2);
+  padding: var(--sp-1) var(--sp-3);
+  background: var(--accent);
+  color: #fff;
+  font-size: var(--fs-small);
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+}
+
+/* === Écran d'accueil 1.a === */
+
+.hello h2 {
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  margin-bottom: var(--sp-3);
+}
+
+.hello > p {
+  color: var(--text-muted);
+  margin-bottom: var(--sp-5);
+}
+
+.diag {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
+
+.diag h3 {
+  font-size: var(--fs-h3);
+  font-weight: 600;
+  margin-bottom: var(--sp-3);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 12px;
+}
+
+.diag dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--sp-2) var(--sp-4);
+  font-size: var(--fs-small);
+}
+
+.diag dt {
+  color: var(--text-muted);
+}
+
+.diag dd {
+  font-family: var(--font-mono);
+  word-break: break-word;
+}
+
+.note {
+  margin-top: var(--sp-5);
+  padding: var(--sp-4);
+  background: var(--bg-elevated);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-small);
+  color: var(--text-muted);
+}
+
+/* === Erreur === */
+
+.erreur {
+  padding: var(--sp-5);
+  background: var(--bg-surface);
+  border: 1px solid var(--danger);
+  border-radius: var(--r-md);
+  margin-top: var(--sp-5);
+}
+
+.erreur h2 {
+  color: var(--danger);
+  margin-bottom: var(--sp-3);
+}
+
+.erreur pre {
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
