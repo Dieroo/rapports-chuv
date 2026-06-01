@@ -4,21 +4,19 @@ App perso de pré-remplissage des rapports d'intervention pour Dieroo
 (Securitas CHUV). PWA installable sur Android, données 100% locales (IndexedDB),
 aucun backend, aucun cloud.
 
-> **Statut actuel : Slice 1.a — Setup minimal**
+> **Statut : V1 test terrain (slices 1+2+3)**
 > Voir `STATUS.md` du projet Claude pour la roadmap complète.
 
 ---
 
 ## Mettre en ligne via GitHub Pages
 
-1. Sur github.com, créer le repo `rapports-chuv` (public ou privé peu importe).
+1. Sur github.com, repo `rapports-chuv` (public si plan gratuit).
 2. Uploader le contenu de ce dossier (drag & drop dans "Add file → Upload files").
-3. Settings → Pages → Source : `Deploy from a branch` → branch `main` (root) → Save.
-4. Attendre ~1 minute. L'URL publique sera `https://dieroo.github.io/rapports-chuv/`.
+3. Settings → Pages → Source : `Deploy from a branch` → branche `main` (root) → Save.
+4. Attendre ~1 min. URL publique : `https://dieroo.github.io/rapports-chuv/`.
 
-## Tester en local (optionnel)
-
-Un serveur HTTP simple suffit (les Service Workers exigent HTTPS ou localhost) :
+## Tester en local
 
 ```bash
 cd rapports-chuv
@@ -30,51 +28,78 @@ python3 -m http.server 8080
 
 ```
 rapports-chuv/
-├── index.html              Page d'entrée
-├── manifest.webmanifest    PWA manifest
-├── sw.js                   Service Worker (cache offline)
+├── index.html                  Page d'entrée + script anti-FOUC inline
+├── manifest.webmanifest        PWA manifest
+├── sw.js                       Service Worker (cache offline)
 ├── README.md
 │
-├── assets/
-│   └── icons/              Icônes PWA (192, 512, maskable)
+├── assets/icons/               192, 512, maskable
 │
 ├── styles/
-│   └── base.css            Variables CSS, reset, layout
+│   ├── base.css                Tokens, thèmes, reset
+│   └── components.css          Tous les composants UI
 │
 ├── scripts/
-│   ├── app.js              Entry point (ES module)
-│   ├── db.js               Schéma Dexie + helpers d'accès
-│   ├── screens/            (Slice 1.b et suivantes)
+│   ├── app.js                  Entry point + routing
+│   ├── db.js                   Schéma Dexie + helpers CRUD
+│   ├── theme.js                Gestion thèmes (clair/auto/sombre)
+│   ├── state.js                État global + observers
+│   ├── ui.js                   Helpers DOM, formatage, presse-papier
+│   ├── lieux-store.js          Autocomplétion lieux (épinglés + fréquence)
+│   ├── templates.js            Phrases workflow Surveillance
+│   ├── screens/
+│   │   ├── poste-selector.js   Écran sélection du poste
+│   │   ├── intervention-list.js Écran liste des interventions
+│   │   └── intervention-edit.js Écran édition (le gros morceau)
 │   └── lib/
-│       └── dexie.min.js    Wrapper IndexedDB (embarqué local)
+│       └── dexie.min.js        Wrapper IndexedDB embarqué local
 │
 └── data/
-    └── referentiels.js     Postes brigade, statuts Référence, lieux pré-chargés
+    └── referentiels.js         Postes, statuts, fonctions, lieux pré-chargés
 ```
 
-## Stack
+## Fonctionnalités V1 test terrain
 
-- HTML/CSS/JS vanilla, ES modules
-- IndexedDB via [Dexie](https://dexie.org/) (embarqué local, ~94 ko)
-- Service Worker écrit à la main (~30 lignes, cache-first sur assets)
-- Zéro build, zéro framework, zéro dépendance runtime externe
+### Slice 1 (squelette ergonomique)
+- Sélecteur de poste (14 postes, déclenche un Service)
+- Liste des interventions des 7 derniers jours, regroupée par date
+- Création / édition / suppression d'intervention
+- Fil chronologique avec heure + texte par entrée
+- 3 boutons de copie : Référence / Description / Rapport entier
+- Aide-mémoire OnSphere (panneau récap)
 
-## Tester la Slice 1.a
+### Slice 2 (référentiels & autocomplétion)
+- Pré-chargement de 14 lieux
+- Autocomplétion par récurrence (apprentissage)
+- Épinglage manuel (jusqu'à 5 lieux en accès rapide)
+- Sélecteurs structurés : Statut Référence (8), Fonctions médicales (14), Catégories (10)
 
-Une fois l'app ouverte dans Chrome Android :
+### Slice 3 (templates workflow Surveillance)
+- 10 boutons d'action workflow : Engagement, Sur place, Risques, Transmission CDS,
+  Transfert, Note libre, Relève brigade, Relève SP, Fin médical, Transfert ambulance
+- Chaque action ouvre un mini-dialog paramétré et insère une entrée horodatée
 
-1. Tu dois voir un écran "Prêt à démarrer" avec deux encarts de diagnostic
-   (base de données + référentiels).
-2. Le menu Chrome doit proposer "Installer l'application" ou
-   "Ajouter à l'écran d'accueil".
-3. Dans DevTools (sur PC) :
-   - `Application > Service Workers` : `sw.js` doit être "activated and running".
-   - `Application > IndexedDB > RapportsCHUV` : 3 stores créés
-     (`services`, `interventions`, `entrees`), vides.
-   - Console : pas d'erreur, message `[SW] Enregistré` et `[App] Initialisée`.
+### Bonus : système 3 thèmes
+- Clair (par défaut) / Auto (suit le système) / Sombre
+- Sélecteur ☀ / ⌗ / ☾ en haut à droite, persisté en localStorage
 
-## Suite
+## Pas dans cette V1 (à venir)
 
-- **Slice 1.b** : sélecteur "Mon poste pour ce service" + écran Liste vide
-- **Slice 1.c** : création d'intervention (lieu + référence + démarrage)
-- **Slice 1.d** : entrées chronologiques + 3 boutons de copie + aide-mémoire OnSphere
+- Slice 4 : export "Partager pour Claude" via Web Share API + champ Transmission de service
+- Slice 5 : archive 3 mois avec containers Service, photo de référence, filtres archive
+- Slice 6 : polish (typo IBM Plex, accessibilité avancée, etc.)
+
+## Test rapide après installation
+
+1. Au premier lancement → sélecteur de poste, choisir un poste (ex S257).
+2. Sur la liste vide, cliquer "+ Nouvelle intervention".
+3. Remplir lieu (autocomplétion → choisir BU44/07/PLI par exemple), statut + nom.
+4. Cocher des risques (Auto, Hétéro, Fugue) + toggle physique forte.
+5. Cliquer "Engagement" → dialog → "CDS" → "demande de surveillance..." → Insérer.
+6. Cliquer "Sur place" → fonction + nom → Insérer.
+7. Vérifier que les entrées apparaissent dans le fil chronologique.
+8. Cliquer 📋 sur "Référence" → coller dans un éditeur de texte → vérifier `Pat. ...`.
+9. Cliquer 📋 sur une entrée → coller → vérifier le texte.
+10. Tester le sélecteur de thème ☀ / ⌗ / ☾.
+11. Cliquer "Terminer l'intervention".
+12. Fermer l'app, la rouvrir → l'intervention doit toujours être là.

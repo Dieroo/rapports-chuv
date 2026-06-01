@@ -5,32 +5,43 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Rapports CHUV</title>
 
+  <!-- Anti-FOUC : pose data-theme AVANT le CSS -->
+  <script>
+    (function () {
+      try {
+        var stocke = localStorage.getItem('rapports-chuv-theme');
+        var theme = (stocke === 'clair' || stocke === 'sombre' || stocke === 'auto') ? stocke : 'auto';
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'auto');
+      }
+    })();
+  </script>
+
   <!-- PWA / mobile -->
   <link rel="manifest" href="./manifest.webmanifest" />
-  <meta name="theme-color" content="#0F0F11" />
+  <meta name="theme-color" content="#F6F8FA" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Rapports" />
   <link rel="apple-touch-icon" href="./assets/icons/icon-192.png" />
-
   <link rel="icon" type="image/png" href="./assets/icons/icon-192.png" />
 
   <!-- Styles -->
   <link rel="stylesheet" href="./styles/base.css" />
+  <link rel="stylesheet" href="./styles/components.css" />
 </head>
 <body>
   <div id="app">
-    <!-- Rendu par scripts/app.js -->
     <noscript>
-      <p style="padding:1rem;color:#fff;background:#E2001A">
+      <p style="padding:1rem;color:#fff;background:#DC2626">
         Cette application nécessite JavaScript. Activez-le dans votre navigateur.
       </p>
     </noscript>
   </div>
 
-  <!-- Dexie d'abord (expose window.Dexie en non-module) -->
+  <!-- Dexie d'abord -->
   <script src="./scripts/lib/dexie.min.js"></script>
-
   <!-- Puis l'app en ES module -->
   <script type="module" src="./scripts/app.js"></script>
 </body>

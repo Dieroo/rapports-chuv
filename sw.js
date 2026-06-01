@@ -1,19 +1,28 @@
-// Service Worker — Slice 1.a
-// Stratégie : cache-first sur les assets de l'app, network-first sur le HTML
-// (pour qu'une mise à jour du HTML soit prise en compte rapidement).
+// Service Worker — Slice 1+2+3 V1 test terrain
+// cache-first sur les assets, network-first sur le HTML
 
-const CACHE_VERSION = 'rapports-chuv-v1-a-001';
+const CACHE_VERSION = 'rapports-chuv-v1-test-001';
 const ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
   './styles/base.css',
+  './styles/components.css',
   './scripts/app.js',
   './scripts/db.js',
+  './scripts/theme.js',
+  './scripts/state.js',
+  './scripts/ui.js',
+  './scripts/lieux-store.js',
+  './scripts/templates.js',
+  './scripts/screens/poste-selector.js',
+  './scripts/screens/intervention-list.js',
+  './scripts/screens/intervention-edit.js',
   './scripts/lib/dexie.min.js',
   './data/referentiels.js',
   './assets/icons/icon-192.png',
-  './assets/icons/icon-512.png'
+  './assets/icons/icon-512.png',
+  './assets/icons/icon-maskable.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -25,7 +34,6 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  // Supprime les anciens caches
   event.waitUntil(
     caches.keys()
       .then(keys => Promise.all(
@@ -37,13 +45,8 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const req = event.request;
+  if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
 
-  // Ignore les requêtes non-GET et les requêtes vers d'autres origines
-  if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) {
-    return;
-  }
-
-  // HTML : network-first (pour récupérer la dernière version quand on est en ligne)
   if (req.mode === 'navigate' || req.destination === 'document') {
     event.respondWith(
       fetch(req)
@@ -57,7 +60,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Autres assets : cache-first
   event.respondWith(
     caches.match(req).then(cached => cached || fetch(req).then(res => {
       const copy = res.clone();

@@ -1,10 +1,14 @@
-// Entry point — Slice 1.a
-// Initialise la DB, enregistre le Service Worker, affiche un écran d'accueil minimal.
+// Entry point — Slice 1+2+3 V1 test terrain.
+// Routing minimal entre les 3 écrans (poste-selector / list / intervention-edit).
 
-import { db, diagnostic } from './db.js';
-import { POSTES, STATUTS_REFERENCE, LIEUX_PRECHARGES } from '../data/referentiels.js';
+import { db, getServiceOuvert, purgerAncienne } from './db.js';
+import { setEcran, setServiceCourant, subscribe, s } from './state.js';
+import { initThemeSelector } from './theme.js';
+import { renderPosteSelector } from './screens/poste-selector.js';
+import { renderInterventionList } from './screens/intervention-list.js';
+import { renderInterventionEdit } from './screens/intervention-edit.js';
 
-// --- Service Worker pour l'installabilité PWA ---
+// --- Service Worker pour l'installabilité PWA + offline ---
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js')
@@ -13,69 +17,62 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// --- Initialisation de la DB et affichage diagnostic ---
-async function init() {
+// --- Routing : rendre l'écran courant ---
+async function rendreEcranCourant() {
   const racine = document.getElementById('app');
-
+  const ecran = s().ecranCourant;
   try {
-    // Ouverture explicite de la DB pour s'assurer qu'elle est créée
-    await db.open();
-    const diag = await diagnostic();
-
-    racine.innerHTML = `
-      <header class="app-header">
-        <h1>Rapports CHUV</h1>
-        <p class="badge">Slice 1.a — Setup minimal</p>
-      </header>
-
-      <main class="hello">
-        <h2>Prêt à démarrer</h2>
-        <p>La base de données locale est initialisée.</p>
-
-        <section class="diag">
-          <h3>Diagnostic</h3>
-          <dl>
-            <dt>Base</dt><dd>${diag.nomBase}</dd>
-            <dt>Version schéma</dt><dd>${diag.version}</dd>
-            <dt>Stores</dt><dd>${diag.stores.join(', ')}</dd>
-            <dt>Services en base</dt><dd>${diag.nbServices}</dd>
-            <dt>Interventions en base</dt><dd>${diag.nbInterventions}</dd>
-            <dt>Entrées en base</dt><dd>${diag.nbEntrees}</dd>
-          </dl>
-        </section>
-
-        <section class="diag">
-          <h3>Référentiels chargés</h3>
-          <dl>
-            <dt>Postes brigade</dt><dd>${POSTES.length} (${POSTES.join(', ')})</dd>
-            <dt>Statuts Référence</dt><dd>${STATUTS_REFERENCE.length}</dd>
-            <dt>Lieux pré-chargés</dt><dd>${LIEUX_PRECHARGES.length}</dd>
-          </dl>
-        </section>
-
-        <p class="note">
-          La suite (sélecteur de poste, écran liste, saisie d'intervention) arrive
-          aux étapes 1.b → 1.d.
-        </p>
-      </main>
-    `;
-
-    console.log('[App] Initialisée', diag);
+    if (ecran === 'poste-selector') {
+      renderPosteSelector(racine);
+    } else if (ecran === 'list') {
+      await renderInterventionList(racine);
+    } else if (ecran === 'intervention-edit') {
+      await renderInterventionEdit(racine);
+    }
+    // Re-bind les boutons de thème après chaque rendu
+    initThemeSelector();
   } catch (err) {
-    console.error('[App] Échec initialisation', err);
+    console.error('[App] Erreur rendu:', err);
     racine.innerHTML = `
       <main class="erreur">
-        <h2>Erreur d'initialisation</h2>
-        <pre>${escapeHtml(String(err))}</pre>
+        <h2>Erreur d'affichage</h2>
+        <pre>${String(err)}</pre>
+        <button class="btn-primaire" onclick="location.reload()">Recharger</button>
       </main>
     `;
   }
 }
 
-function escapeHtml(s) {
-  return s.replace(/[&<>"']/g, c => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-  }[c]));
+// Observer : à chaque changement d'état, on rerendre l'écran courant
+subscribe(rendreEcranCourant);
+
+// --- Initialisation ---
+async function init() {
+  try {
+    await db.open();
+
+    // Purge des données >3 mois (silencieux, en arrière-plan)
+    purgerAncienne().catch(e => console.warn('[Purge] échec:', e));
+
+    // Détecte s'il y a un service ouvert
+    const service = await getServiceOuvert();
+    if (service) {
+      setServiceCourant(service);
+      setEcran('list');
+    } else {
+      setEcran('poste-selector');
+    }
+
+    console.log('[App] Initialisée. Service ouvert:', service ? service.poste : 'aucun');
+  } catch (err) {
+    console.error('[App] Échec init:', err);
+    document.getElementById('app').innerHTML = `
+      <main class="erreur">
+        <h2>Erreur d'initialisation</h2>
+        <pre>${String(err)}</pre>
+      </main>
+    `;
+  }
 }
 
 init();
