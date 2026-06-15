@@ -17,7 +17,7 @@ import {
 import { setEcran, setInterventionCourante, s } from '../state.js';
 import { getSuggestionsLieux, togglePinLieu, estEpingle } from '../lieux-store.js';
 import {
-  escapeHtml, formatHeure, formatHeureInput, copierDansPressePapier,
+  escapeHtml, formatHeure, formatHeureInput, formatDuree, copierDansPressePapier,
   confirmer, demander
 } from '../ui.js';
 
@@ -62,7 +62,20 @@ export async function renderInterventionEdit(container) {
       </div>
       <div class="header-meta">
         <span class="header-statut ${termine ? 'statut-termine' : 'statut-cours'}">${termine ? 'Terminée' : 'En cours'}</span>
-        <span class="header-debut">${escapeHtml(formatHeure(i.debut))}${termine ? ' → ' + escapeHtml(formatHeure(i.fin)) : ''}</span>
+        <div class="header-horaires">
+          <label class="horaire-mini">
+            <span class="horaire-label">Début</span>
+            <input type="time" id="horaire-debut" value="${escapeHtml(formatHeureInput(i.debut))}" />
+          </label>
+          ${termine ? `
+            <span class="horaire-sep">→</span>
+            <label class="horaire-mini">
+              <span class="horaire-label">Fin</span>
+              <input type="time" id="horaire-fin" value="${escapeHtml(formatHeureInput(i.fin))}" />
+            </label>
+            <span class="horaire-duree" id="horaire-duree">${escapeHtml(formatDuree(i.debut, i.fin))}</span>
+          ` : ''}
+        </div>
         <span class="header-poste">${escapeHtml(posteMoi)}</span>
       </div>
     </header>
@@ -82,6 +95,7 @@ export async function renderInterventionEdit(container) {
     </datalist>
   `;
 
+  bindHoraires();
   bindEnTete();
   bindRisques();
   if (!termine) bindActions(posteMoi);
@@ -189,6 +203,38 @@ function statutRequiresName(statutId) {
   if (!statutId) return true;
   const st = STATUTS_REFERENCE.find(s => s.id === statutId);
   return !st || st.requiresName;
+}
+
+// === Binding : modification des horaires début/fin ===
+
+function bindHoraires() {
+  const c = etat.container;
+
+  // Helper : applique HH:MM à la date existante (préserve l'année/mois/jour)
+  const majDateHeure = async (champ, nouveauTime) => {
+    const [h, m] = nouveauTime.split(':').map(Number);
+    if (Number.isNaN(h) || Number.isNaN(m)) return;
+    const dateActuelle = etat.intervention[champ];
+    if (!dateActuelle) return;
+    const nouvelleDate = new Date(dateActuelle);
+    nouvelleDate.setHours(h, m, 0, 0);
+    const patch = { [champ]: nouvelleDate };
+    await majIntervention(etat.intervention.id, patch);
+    etat.intervention[champ] = nouvelleDate;
+    // Rafraîchir l'affichage de durée si fin présente
+    const dureeEl = c.querySelector('#horaire-duree');
+    if (dureeEl && etat.intervention.fin) {
+      dureeEl.textContent = formatDuree(etat.intervention.debut, etat.intervention.fin);
+    }
+  };
+
+  c.querySelector('#horaire-debut')?.addEventListener('change', async (e) => {
+    await majDateHeure('debut', e.target.value);
+  });
+
+  c.querySelector('#horaire-fin')?.addEventListener('change', async (e) => {
+    await majDateHeure('fin', e.target.value);
+  });
 }
 
 function bindEnTete() {
