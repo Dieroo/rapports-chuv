@@ -25,6 +25,24 @@ export function formatHeureInput(date) {
   return `${h}:${m}`;
 }
 
+// Durée entre 2 dates en "1h10", "45 min", "1 j 02h" (au-delà de 24h)
+export function formatDuree(debut, fin) {
+  if (!debut || !fin) return '';
+  const d1 = typeof debut === 'string' ? new Date(debut) : debut;
+  const d2 = typeof fin === 'string' ? new Date(fin) : fin;
+  let totalMin = Math.round((d2 - d1) / 60000);
+  if (totalMin < 0) return '— (fin avant début)';
+  if (totalMin === 0) return '< 1 min';
+  if (totalMin < 60) return `${totalMin} min`;
+  const jours = Math.floor(totalMin / (24 * 60));
+  const heures = Math.floor((totalMin - jours * 24 * 60) / 60);
+  const minutes = totalMin - jours * 24 * 60 - heures * 60;
+  if (jours > 0) {
+    return `${jours} j ${String(heures).padStart(2, '0')}h${String(minutes).padStart(2, '0')}`;
+  }
+  return `${heures}h${String(minutes).padStart(2, '0')}`;
+}
+
 // Date "lundi 31 mai 2026"
 export function formatDateLongue(date) {
   if (!date) return '';
