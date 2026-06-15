@@ -294,6 +294,59 @@
   color: var(--texte);
 }
 
+/* Horaires éditables (début / fin) + durée calculée */
+.header-horaires {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+.horaire-mini {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.horaire-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--texte-faible);
+  font-weight: 600;
+  line-height: 1;
+}
+.horaire-mini input[type="time"] {
+  background: var(--fond-card);
+  border: 1px solid var(--bord);
+  border-radius: var(--radius-sm);
+  color: var(--texte);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  padding: 4px 6px;
+  min-height: 28px;
+  width: 86px;
+  transition: border-color 0.15s ease;
+}
+.horaire-mini input[type="time"]:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.horaire-sep {
+  color: var(--texte-faible);
+  font-family: var(--font-mono);
+  margin-top: 12px; /* aligne avec les inputs (vu qu'on a un label au-dessus) */
+}
+.horaire-duree {
+  background: var(--fond-card);
+  border: 1px solid var(--bord);
+  border-radius: var(--radius-sm);
+  color: var(--texte);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 2px 6px;
+  margin-top: 12px; /* aligne avec les inputs */
+  font-weight: 600;
+}
+
 /* === Écran : sélecteur de poste === */
 
 .ecran-poste h2 {
