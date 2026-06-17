@@ -380,6 +380,8 @@ function renderActions(i, posteMoi) {
         <button type="button" class="btn-action" data-template="transmissionCDS">Transmission CDS</button>
         <button type="button" class="btn-action" data-template="transfert">Transfert</button>
         <button type="button" class="btn-action" data-template="noteLibre">Note libre</button>
+        <button type="button" class="btn-action" data-template="renfortArrivee">Renfort arrivée</button>
+        <button type="button" class="btn-action" data-template="renfortDepart">Départ renfort</button>
       </div>
       <div class="bloc-titre bloc-titre-secondaire">Clôture</div>
       <div class="grille-actions">
@@ -418,6 +420,10 @@ async function declencherTemplate(nom, posteMoi) {
       return ouvrirDialogTransfert();
     case 'noteLibre':
       return ouvrirDialogNoteLibre();
+    case 'renfortArrivee':
+      return ouvrirDialogRenfortArrivee(posteMoi);
+    case 'renfortDepart':
+      return ouvrirDialogRenfortDepart();
     case 'releveBrigade':
       return ouvrirDialogReleveBrigade(posteMoi);
     case 'releveSP':
@@ -544,6 +550,100 @@ function ouvrirDialogNoteLibre() {
     if (!texte) return false;
     await inserer(texte, 'noteLibre');
   });
+}
+
+// === Renforts ===
+
+function idRenfort() {
+  return 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+}
+
+function ouvrirDialogRenfortArrivee(posteMoi) {
+  const autresPostes = POSTES.filter(p => p !== posteMoi);
+  ouvrirDialog('Renfort — arrivée', `
+    <p class="dialog-hint" style="margin-bottom:var(--sp-3)">Sélectionne un poste <strong>ou</strong> saisis un agent en champ libre.</p>
+    <label class="champ">
+      <span class="champ-label">Poste brigade</span>
+      <select id="d-renfort-poste">
+        <option value="">— Choisir un poste —</option>
+        ${autresPostes.map(p => `<option value="${p}">${p}</option>`).join('')}
+      </select>
+    </label>
+    <label class="champ">
+      <span class="champ-label">Ou agent / fonction (champ libre)</span>
+      <input type="text" id="d-renfort-libre" placeholder="ex: Médecin de garde, Agent SP…" />
+    </label>
+  `, async (overlay) => {
+    const poste = overlay.querySelector('#d-renfort-poste').value;
+    const libre = overlay.querySelector('#d-renfort-libre').value.trim();
+    const label = libre || poste;
+    if (!label) return false;
+
+    // Ajoute dans le tableau renforts de l'intervention
+    const renforts = Array.isArray(etat.intervention.renforts) ? etat.intervention.renforts.slice() : [];
+    renforts.push({ id: idRenfort(), label, heureArrivee: new Date().toISOString(), heureFin: null });
+    await majIntervention(etat.intervention.id, { renforts });
+    etat.intervention.renforts = renforts;
+
+    // Entrée chronologique
+    await inserer(`Arrivée du ${label} sur place.`, 'renfortArrivee');
+  });
+}
+
+function ouvrirDialogRenfortDepart() {
+  const renforts = (etat.intervention.renforts || []).filter(r => !r.heureFin);
+
+  if (renforts.length === 0) {
+    ouvrirDialog('Départ renfort', `
+      <p style="color:var(--texte-faible);text-align:center;padding:var(--sp-4) 0">
+        Aucun renfort actif sur cette intervention.
+      </p>
+    `, async () => { /* rien à faire */ });
+    return;
+  }
+
+  ouvrirDialog('Départ renfort', `
+    <p class="dialog-hint" style="margin-bottom:var(--sp-3)">Sélectionne l'agent qui se désengage.</p>
+    <div class="liste-renforts-actifs">
+      ${renforts.map(r => {
+        const arrivee = r.heureArrivee ? formatHeure(new Date(r.heureArrivee)) : '?';
+        return `
+          <div class="renfort-actif" data-renfort-id="${r.id}">
+            <div class="renfort-actif-info">
+              <span class="renfort-actif-label">${escapeHtml(r.label)}</span>
+              <span class="renfort-actif-depuis">depuis ${arrivee}</span>
+            </div>
+            <button type="button" class="btn-secondaire btn-renfort-depart" data-renfort-id="${r.id}">
+              Enregistrer départ
+            </button>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `, async () => { /* le bouton global "Insérer" ne fait rien ici */ });
+
+  // Les boutons individuels gèrent leur propre action
+  setTimeout(() => {
+    document.querySelectorAll('.btn-renfort-depart').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const renfortId = btn.dataset.renfortId;
+        const renfort = renforts.find(r => r.id === renfortId);
+        if (!renfort) return;
+
+        const maintenant = new Date();
+        const renforts2 = (etat.intervention.renforts || []).map(r =>
+          r.id === renfortId ? { ...r, heureFin: maintenant.toISOString() } : r
+        );
+        await majIntervention(etat.intervention.id, { renforts: renforts2 });
+        etat.intervention.renforts = renforts2;
+
+        await inserer(`${renfort.label} quitte l'intervention.`, 'renfortDepart');
+
+        // Ferme le dialog
+        document.querySelector('.dialog-overlay')?.remove();
+      });
+    });
+  }, 0);
 }
 
 function ouvrirDialogReleveBrigade(posteMoi) {
