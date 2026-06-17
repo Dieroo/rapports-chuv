@@ -1116,3 +1116,60 @@
     width: 100%;
   }
 }
+
+/* ===========================================================================
+   === Renforts — dialog départ ===
+   =========================================================================== */
+
+.liste-renforts-actifs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.renfort-actif {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px solid var(--bord);
+  border-radius: var(--radius-md);
+  background: var(--fond);
+}
+
+.renfort-actif-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.renfort-actif-label {
+  font-weight: 600;
+  color: var(--texte);
+  font-size: var(--fs-base);
+}
+
+.renfort-actif-depuis {
+  font-size: var(--fs-small);
+  color: var(--texte-faible);
+}
+
+.btn-renfort-depart {
+  flex-shrink: 0;
+  font-size: var(--fs-small);
+  padding: var(--sp-2) var(--sp-3);
+  min-height: var(--touch-target);
+}
+
+@media (max-width: 420px) {
+  .renfort-actif {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .btn-renfort-depart {
+    width: 100%;
+  }
+}
