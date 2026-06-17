@@ -45,6 +45,7 @@ export const FONCTIONS_MEDICALES = [
 // Type reste en champ texte libre (varie selon catégorie).
 export const CATEGORIES = [
   'Assistance',
+  'Code blanc',
   'Détenu',
   'Feu / inondation / sinistre',
   'Gardiennage',
