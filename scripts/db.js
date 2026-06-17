@@ -15,6 +15,21 @@ db.version(1).stores({
   entrees:        '++id, interventionId, heure'
 });
 
+// Version 2 — Slice 4 : bloc service (transmission + notes + tâches) + bibliothèque tâches récurrentes
+db.version(2).stores({
+  services:           '++id, poste, debut, fin',
+  interventions:      '++id, serviceId, debut, fin, lieu, referenceStatut',
+  entrees:            '++id, interventionId, heure',
+  tachesRecurrentes:  '++id, &texte, compteur, derniereUtilisation, epinglee'
+}).upgrade(async (tx) => {
+  // Initialise les champs nouveaux sur tous les services existants
+  await tx.table('services').toCollection().modify(s => {
+    if (s.transmissionRecue == null) s.transmissionRecue = '';
+    if (s.notesService == null) s.notesService = '';
+    if (!Array.isArray(s.taches)) s.taches = [];
+  });
+});
+
 // === Services ===
 
 export async function getServiceOuvert() {
@@ -35,7 +50,9 @@ export async function ouvrirService(poste) {
     poste,
     debut: maintenant,
     fin: null,
-    transmissionRecue: ''
+    transmissionRecue: '',
+    notesService: '',
+    taches: []
   });
   return await db.services.get(id);
 }
@@ -45,6 +62,74 @@ export async function terminerServiceCourant() {
   return await db.services
     .filter(s => s.fin == null)
     .modify({ fin: maintenant });
+}
+
+// Met à jour un service (champs partiels).
+export async function majService(id, patch) {
+  await db.services.update(id, patch);
+  return await db.services.get(id);
+}
+
+export async function getService(id) {
+  return await db.services.get(id);
+}
+
+// === Tâches récurrentes (Slice 4b) ===
+//
+// Bibliothèque alimentée à chaque AJOUT d'une tâche dans un service.
+// Texte unique (index `&texte`). Si une tâche du même libellé est créée à
+// nouveau, le compteur s'incrémente et la dernière utilisation est mise à jour.
+
+export async function enregistrerTacheRecurrente(texte) {
+  const t = (texte || '').trim();
+  if (!t) return null;
+  const existante = await db.tachesRecurrentes.where('texte').equals(t).first();
+  if (existante) {
+    await db.tachesRecurrentes.update(existante.id, {
+      compteur: (existante.compteur || 0) + 1,
+      derniereUtilisation: new Date()
+    });
+    return await db.tachesRecurrentes.get(existante.id);
+  } else {
+    const id = await db.tachesRecurrentes.add({
+      texte: t,
+      compteur: 1,
+      derniereUtilisation: new Date(),
+      epinglee: 0     // 0/1 en base (les booleans Dexie indexés sont mal supportés)
+    });
+    return await db.tachesRecurrentes.get(id);
+  }
+}
+
+export async function listerTachesRecurrentes() {
+  return await db.tachesRecurrentes.toArray();
+}
+
+export async function setEpinglageTacheRecurrente(id, epingle) {
+  await db.tachesRecurrentes.update(id, { epinglee: epingle ? 1 : 0 });
+  return await db.tachesRecurrentes.get(id);
+}
+
+export async function setEpinglageTacheRecurrenteParTexte(texte, epingle) {
+  const t = (texte || '').trim();
+  if (!t) return null;
+  let existante = await db.tachesRecurrentes.where('texte').equals(t).first();
+  if (!existante) {
+    // Créée à la volée (cas où l'utilisateur épingle une tâche encore sans historique)
+    const id = await db.tachesRecurrentes.add({
+      texte: t, compteur: 0, derniereUtilisation: new Date(),
+      epinglee: epingle ? 1 : 0
+    });
+    existante = await db.tachesRecurrentes.get(id);
+  } else {
+    await db.tachesRecurrentes.update(existante.id, { epinglee: epingle ? 1 : 0 });
+    existante = await db.tachesRecurrentes.get(existante.id);
+  }
+  return existante;
+}
+
+export async function supprimerTacheRecurrente(id) {
+  await db.tachesRecurrentes.delete(id);
 }
 
 // === Interventions ===
@@ -174,6 +259,7 @@ export async function diagnostic() {
     stores: db.tables.map(t => t.name),
     nbServices: await db.services.count(),
     nbInterventions: await db.interventions.count(),
-    nbEntrees: await db.entrees.count()
+    nbEntrees: await db.entrees.count(),
+    nbTachesRecurrentes: await db.tachesRecurrentes.count()
   };
 }
