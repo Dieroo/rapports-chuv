@@ -30,6 +30,18 @@ db.version(2).stores({
   });
 });
 
+// Version 3 — Slice 5 : champ renforts sur interventions
+db.version(3).stores({
+  services:           '++id, poste, debut, fin',
+  interventions:      '++id, serviceId, debut, fin, lieu, referenceStatut',
+  entrees:            '++id, interventionId, heure',
+  tachesRecurrentes:  '++id, &texte, compteur, derniereUtilisation, epinglee'
+}).upgrade(async (tx) => {
+  await tx.table('interventions').toCollection().modify(i => {
+    if (!Array.isArray(i.renforts)) i.renforts = [];
+  });
+});
+
 // === Services ===
 
 export async function getServiceOuvert() {
