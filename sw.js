@@ -1,7 +1,7 @@
-// Service Worker — Slice 1+2+3 V1 test terrain
+// Service Worker — Slice 1+2+3+4 V1 test terrain
 // cache-first sur les assets, network-first sur le HTML
 
-const CACHE_VERSION = 'rapports-chuv-v1-test-002';
+const CACHE_VERSION = 'rapports-chuv-v1-test-003';
 const ASSETS = [
   './',
   './index.html',
@@ -14,10 +14,12 @@ const ASSETS = [
   './scripts/state.js',
   './scripts/ui.js',
   './scripts/lieux-store.js',
+  './scripts/service-store.js',
   './scripts/templates.js',
   './scripts/screens/poste-selector.js',
   './scripts/screens/intervention-list.js',
   './scripts/screens/intervention-edit.js',
+  './scripts/screens/bloc-service.js',
   './scripts/lib/dexie.min.js',
   './data/referentiels.js',
   './assets/icons/icon-192.png',
