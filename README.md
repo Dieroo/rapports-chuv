@@ -4,7 +4,7 @@ App perso de pré-remplissage des rapports d'intervention pour Dieroo
 (Securitas CHUV). PWA installable sur Android, données 100% locales (IndexedDB),
 aucun backend, aucun cloud.
 
-> **Statut : V1 test terrain (slices 1+2+3)**
+> **Statut : V1 test terrain (slices 1+2+3+4)**
 > Voir `STATUS.md` du projet Claude pour la roadmap complète.
 
 ---
@@ -46,11 +46,13 @@ rapports-chuv/
 │   ├── state.js                État global + observers
 │   ├── ui.js                   Helpers DOM, formatage, presse-papier
 │   ├── lieux-store.js          Autocomplétion lieux (épinglés + fréquence)
+│   ├── service-store.js        Tâches du service + bibliothèque récurrentes (Slice 4)
 │   ├── templates.js            Phrases workflow Surveillance
 │   ├── screens/
 │   │   ├── poste-selector.js   Écran sélection du poste
 │   │   ├── intervention-list.js Écran liste des interventions
-│   │   └── intervention-edit.js Écran édition (le gros morceau)
+│   │   ├── intervention-edit.js Écran édition (le gros morceau)
+│   │   └── bloc-service.js     Bloc "Mon service" : 3 sections + checklist (Slice 4)
 │   └── lib/
 │       └── dexie.min.js        Wrapper IndexedDB embarqué local
 │
@@ -79,15 +81,25 @@ rapports-chuv/
   Transfert, Note libre, Relève brigade, Relève SP, Fin médical, Transfert ambulance
 - Chaque action ouvre un mini-dialog paramétré et insère une entrée horodatée
 
+### Slice 4 (bloc "Mon service")
+- Bloc visible en tête de la liste, après le bandeau de service en cours
+- 3 sections repliables :
+  - **Transmission reçue** : collage de la prise de service ou saisie libre
+  - **Notes du service** : mémo libre, observations, contexte
+  - **Tâches** : checklist cochable avec horodatage de complétion
+- Bibliothèque de tâches récurrentes : apprentissage par usage, suggestion au démarrage d'un nouveau service
+- Épinglage manuel d'une tâche pour qu'elle apparaisse pré-cochée dans les propositions
+- Auto-save 400 ms après chaque frappe + sauvegarde au blur
+
 ### Bonus : système 3 thèmes
 - Clair (par défaut) / Auto (suit le système) / Sombre
 - Sélecteur ☀ / ⌗ / ☾ en haut à droite, persisté en localStorage
 
 ## Pas dans cette V1 (à venir)
 
-- Slice 4 : export "Partager pour Claude" via Web Share API + champ Transmission de service
-- Slice 5 : archive 3 mois avec containers Service, photo de référence, filtres archive
-- Slice 6 : polish (typo IBM Plex, accessibilité avancée, etc.)
+- Slice 5 : export "Partager pour Claude" via Web Share API (inclut transmission + notes du bloc service)
+- Slice 6 : archive 3 mois avec containers Service, photo de référence, filtres archive
+- Slice 7 : polish (typo IBM Plex, accessibilité avancée, etc.)
 
 ## Test rapide après installation
 
