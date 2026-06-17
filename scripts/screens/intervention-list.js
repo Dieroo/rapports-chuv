@@ -6,6 +6,7 @@ import { listerInterventionsRecentes, creerIntervention, getIntervention } from 
 import { setEcran, setInterventionCourante, s } from '../state.js';
 import { STATUTS_REFERENCE, formatReference } from '../../data/referentiels.js';
 import { escapeHtml, formatHeure, formatDateRelative, confirmer } from '../ui.js';
+import { renderBlocService } from './bloc-service.js';
 
 export async function renderInterventionList(container) {
   const serviceActuel = s().serviceCourant;
@@ -106,6 +107,8 @@ export async function renderInterventionList(container) {
     <main class="ecran-liste">
       ${enteteService}
 
+      ${serviceActuel ? `<div id="bloc-service-container"></div>` : ''}
+
       ${serviceActuel ? `
         <button type="button" class="btn-primaire btn-bloc" data-action="nouvelle-intervention">
           + Nouvelle intervention
@@ -122,6 +125,22 @@ export async function renderInterventionList(container) {
   container.querySelector('[data-action="changer-poste"]')?.addEventListener('click', () => {
     setEcran('poste-selector');
   });
+
+  // Slice 4 : monte le bloc service (transmission + notes + tâches) si un service est en cours.
+  // On NE rappelle PAS setServiceCourant (qui déclencherait un rerender complet et tuerait
+  // le focus dans les textareas). Le bloc-service gère son propre rerender local ; on se
+  // contente de mettre à jour silencieusement l'objet service en mémoire pour que les autres
+  // écrans (édition d'intervention) voient une donnée fraîche s'ils y reviennent.
+  if (serviceActuel) {
+    const blocContainer = container.querySelector('#bloc-service-container');
+    if (blocContainer) {
+      await renderBlocService(blocContainer, serviceActuel, (serviceMaj) => {
+        // Mutation silencieuse : on remplace les champs dans l'objet en place
+        Object.assign(serviceActuel, serviceMaj);
+        s().serviceCourant = serviceActuel;
+      });
+    }
+  }
 
   // Bind : nouvelle intervention
   container.querySelector('[data-action="nouvelle-intervention"]')?.addEventListener('click', async () => {
