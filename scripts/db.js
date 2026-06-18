@@ -50,10 +50,22 @@ db.version(4).stores({
 }).upgrade(async (tx) => {
   await tx.table('services').toCollection().modify(s => {
     if (!Array.isArray(s.gardes))          s.gardes             = [];
-    if (s.heureDebutService   == null)     s.heureDebutService   = null; // heure saisie à la prise de service (peut différer de debut)
-    if (s.heureFinService     == null)     s.heureFinService     = null; // heure saisie à la fin de service
+    if (s.heureDebutService   == null)     s.heureDebutService   = null;
+    if (s.heureFinService     == null)     s.heureFinService     = null;
     if (s.transitionRecepte   == null)     s.transmissionRecue   = s.transmissionRecue || '';
     if (s.transinfoReleve     == null)     s.transinfoReleve     = '';
+  });
+});
+
+// Version 5 — Champs rapport feu sur intervention
+db.version(5).stores({
+  services:             '++id, poste, debut, fin',
+  interventions:        '++id, serviceId, debut, fin, lieu, referenceStatut',
+  entrees:              '++id, interventionId, heure',
+  tachesRecurrentes:    '++id, &texte, compteur, derniereUtilisation, epinglee'
+}).upgrade(async (tx) => {
+  await tx.table('interventions').toCollection().modify(i => {
+    if (!i.rapportFeu) i.rapportFeu = null;
   });
 });
 
