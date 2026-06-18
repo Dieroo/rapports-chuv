@@ -15,6 +15,7 @@ import { STATUTS_REFERENCE, formatReference } from '../../data/referentiels.js';
 import { escapeHtml, formatHeure, formatHeureInput, formatDateRelative } from '../ui.js';
 import { renderBlocService } from './bloc-service.js';
 import { renderTableauGardes } from './gardes.js';
+import { exporterService } from '../export-claude.js';
 
 // ─── Heures standard par poste ───────────────────────────────────────────────
 // Format : [HH, MM] début, [HH, MM] fin
@@ -247,6 +248,7 @@ export async function renderInterventionList(container) {
       </div>
       <div class="bandeau-service-actions">
         <button type="button" class="btn-primaire btn-sm" data-action="nouvelle-intervention">+ Intervention</button>
+        <button type="button" class="btn-claude   btn-sm" data-action="export-service">🤖 Exporter</button>
         <button type="button" class="btn-danger   btn-sm" data-action="fin-service">Fin de service</button>
         <button type="button" class="btn-tertiaire btn-sm" data-action="changer-poste">Changer</button>
       </div>
@@ -359,6 +361,12 @@ export async function renderInterventionList(container) {
 
   // Sélecteur de thème
   // (géré par initThemeSelector dans app.js après chaque rendu)
+
+  // Export service pour Claude
+  container.querySelector('[data-action="export-service"]')?.addEventListener('click', async (e) => {
+    if (!serviceActuel) return;
+    await exporterService(serviceActuel, e.currentTarget);
+  });
 
   // Nouvelle intervention
   container.querySelector('[data-action="nouvelle-intervention"]')?.addEventListener('click', async () => {
