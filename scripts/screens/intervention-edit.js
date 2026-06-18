@@ -6,8 +6,8 @@ import {
   ajouterEntree, majEntree, supprimerEntree, listerEntreesIntervention
 } from '../db.js';
 import {
-  STATUTS_REFERENCE, FONCTIONS_MEDICALES, CATEGORIES, POSTES,
-  formatReference, formatRisques
+  STATUTS_REFERENCE, FONCTIONS_MEDICALES, CATEGORIES, TYPES_PAR_CATEGORIE,
+  CHAMPS_RAPPORT_FEU, POSTES, formatReference, formatRisques
 } from '../../data/referentiels.js';
 import {
   phraseEngagement, phraseSurPlace, phraseRisques, phraseTransmissionCDS,
@@ -78,6 +78,7 @@ export async function renderInterventionEdit(container) {
     <main class="ecran-edit">
       ${renderEnTete(i)}
       ${renderRisques(i)}
+      ${i.categorie === 'Feu / inondation / sinistre' ? renderBlocFeu(i) : ''}
       ${!termine ? renderActions(i, posteMoi) : ''}
       ${renderFilChrono(etat.entrees)}
       ${renderAideMemoire(i)}
@@ -176,7 +177,7 @@ function renderEnTete(i) {
           </label>
           <label class="champ">
             <span class="champ-label">Type</span>
-            <input type="text" id="champ-type" value="${escapeHtml(i.type || '')}" placeholder="ex: Surveillance par agent hors dispositif" />
+            ${renderSelectType(i.categorie, i.type)}
           </label>
         </div>
         ${!estEngagementCDS(etat.entrees) ? `
@@ -281,15 +282,46 @@ function bindEnTete() {
   });
 
   c.querySelector('#champ-categorie').addEventListener('change', async (e) => {
-    await majIntervention(etat.intervention.id, { categorie: e.target.value || null });
-    etat.intervention.categorie = e.target.value || null;
+    const v = e.target.value || null;
+    await majIntervention(etat.intervention.id, { categorie: v, type: '' });
+    etat.intervention.categorie = v;
+    etat.intervention.type = '';
     rafraichirAideMemoire();
+    // Rerender pour afficher le bon select type et éventuellement le bloc feu
+    await renderInterventionEdit(etat.container);
   });
 
-  c.querySelector('#champ-type').addEventListener('blur', async (e) => {
+  // Select type contextuel (liste prédéfinie)
+  c.querySelector('#champ-type-select')?.addEventListener('change', async (e) => {
+    const val = e.target.value;
+    const inputLibre = c.querySelector('#champ-type');
+    if (val === '__libre__') {
+      if (inputLibre) inputLibre.style.display = '';
+      inputLibre?.focus();
+    } else {
+      if (inputLibre) { inputLibre.style.display = 'none'; inputLibre.value = val; }
+      await majIntervention(etat.intervention.id, { type: val });
+      etat.intervention.type = val;
+      rafraichirAideMemoire();
+    }
+  });
+
+  // Champ type (saisie libre ou valeur du select)
+  c.querySelector('#champ-type')?.addEventListener('blur', async (e) => {
     await majIntervention(etat.intervention.id, { type: e.target.value.trim() });
     etat.intervention.type = e.target.value.trim();
     rafraichirAideMemoire();
+  });
+
+  // Champs rapport feu
+  c.querySelectorAll('.champ-feu-input').forEach(input => {
+    input.addEventListener('blur', async () => {
+      const champId = input.dataset.champFeu;
+      const feu = { ...(etat.intervention.rapportFeu || {}) };
+      feu[champId] = input.value.trim();
+      await majIntervention(etat.intervention.id, { rapportFeu: feu });
+      etat.intervention.rapportFeu = feu;
+    });
   });
 
   c.querySelector('#champ-description')?.addEventListener('blur', async (e) => {
@@ -301,6 +333,47 @@ function bindEnTete() {
 function rafraichirAideMemoire() {
   const am = etat.container.querySelector('.aide-memoire-contenu');
   if (am) am.innerHTML = aideMemoireHTML(etat.intervention);
+}
+
+// === Helper : Select Type contextuel ===
+
+function renderSelectType(categorie, typeActuel) {
+  const types = categorie && TYPES_PAR_CATEGORIE[categorie];
+  if (!types || types.length === 0) {
+    // Pas de liste prédéfinie → saisie libre
+    return `<input type="text" id="champ-type" value="${escapeHtml(typeActuel || '')}" placeholder="Saisie libre…" />`;
+  }
+  // Liste prédéfinie + option saisie libre
+  const libreSelected = typeActuel && !types.includes(typeActuel);
+  return `
+    <select id="champ-type-select">
+      <option value="">— Choisir —</option>
+      ${types.map(t => `<option value="${escapeHtml(t)}" ${typeActuel === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('')}
+      <option value="__libre__" ${libreSelected ? 'selected' : ''}>Autre (saisie libre)…</option>
+    </select>
+    ${libreSelected ? `<input type="text" id="champ-type" value="${escapeHtml(typeActuel || '')}" placeholder="Saisie libre…" style="margin-top:var(--sp-1)" />` : '<input type="text" id="champ-type" value="${escapeHtml(typeActuel || '')}" style="display:none" />'}
+  `;
+}
+
+// === Rendu : Bloc rapport feu ===
+
+function renderBlocFeu(i) {
+  const feu = i.rapportFeu || {};
+  return `
+    <section class="bloc-rapport-feu">
+      <div class="bloc-titre">Rapport feu</div>
+      <div class="champs-feu">
+        ${CHAMPS_RAPPORT_FEU.map(champ => `
+          <label class="champ">
+            <span class="champ-label">${escapeHtml(champ.label)}</span>
+            <input type="text" class="champ-feu-input" data-champ-feu="${champ.id}"
+              value="${escapeHtml(feu[champ.id] || '')}"
+              placeholder="${escapeHtml(champ.label)}…" />
+          </label>
+        `).join('')}
+      </div>
+    </section>
+  `;
 }
 
 // === Rendu : Risques ===
