@@ -150,10 +150,31 @@
   width: 5rem;
 }
 
-/* Icônes d'action */
+/* Icônes d'action — ligne dédiée sous les données, disposition horizontale */
+.garde-icones-row td {
+  padding: 0 var(--sp-2) var(--sp-1);
+  border-bottom: 2px solid var(--bordure);
+}
+
+.garde-icones-row.garde-terminee td {
+  background: transparent;
+  opacity: .55;
+}
+
+.garde-icones-row.garde-suspendue td {
+  background: rgba(250, 204, 21, .18);
+}
+
+.garde-icones-cell {
+  padding-top: 0 !important;
+}
+
 .garde-icones {
-  white-space: nowrap;
-  text-align: right;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-1) 0;
 }
 
 .icone-garde {
