@@ -340,19 +340,23 @@ function rafraichirAideMemoire() {
 function renderSelectType(categorie, typeActuel) {
   const types = categorie && TYPES_PAR_CATEGORIE[categorie];
   if (!types || types.length === 0) {
-    // Pas de liste prédéfinie → saisie libre
-    return `<input type="text" id="champ-type" value="${escapeHtml(typeActuel || '')}" placeholder="Saisie libre…" />`;
+    return '<input type="text" id="champ-type" value="' + escapeHtml(typeActuel || '') + '" placeholder="Saisie libre…" />';
   }
-  // Liste prédéfinie + option saisie libre
-  const libreSelected = typeActuel && !types.includes(typeActuel);
-  return `
-    <select id="champ-type-select">
-      <option value="">— Choisir —</option>
-      ${types.map(t => `<option value="${escapeHtml(t)}" ${typeActuel === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('')}
-      <option value="__libre__" ${libreSelected ? 'selected' : ''}>Autre (saisie libre)…</option>
-    </select>
-    ${libreSelected ? `<input type="text" id="champ-type" value="${escapeHtml(typeActuel || '')}" placeholder="Saisie libre…" style="margin-top:var(--sp-1)" />` : '<input type="text" id="champ-type" value="${escapeHtml(typeActuel || '')}" style="display:none" />'}
-  `;
+  const libreSelected = !!(typeActuel && !types.includes(typeActuel));
+  const optionsHTML = types.map(t => {
+    const sel = typeActuel === t ? ' selected' : '';
+    return '<option value="' + escapeHtml(t) + '"' + sel + '>' + escapeHtml(t) + '</option>';
+  }).join('');
+  const inputLibre = libreSelected
+    ? '<input type="text" id="champ-type" value="' + escapeHtml(typeActuel || '') + '" placeholder="Saisie libre…" style="margin-top:var(--sp-1)" />'
+    : '<input type="text" id="champ-type" value="" style="display:none" />';
+  return '<select id="champ-type-select">'
+    + '<option value="">— Choisir —</option>'
+    + optionsHTML
+    + '<option value="__libre__"' + (libreSelected ? ' selected' : '') + '>Autre (saisie libre)…</option>'
+    + '</select>'
+    + inputLibre;
+}
 }
 
 // === Rendu : Bloc rapport feu ===
