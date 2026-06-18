@@ -357,7 +357,6 @@ function renderSelectType(categorie, typeActuel) {
     + '</select>'
     + inputLibre;
 }
-}
 
 // === Rendu : Bloc rapport feu ===
 
