@@ -357,3 +357,23 @@
   gap: var(--sp-2);
   cursor: pointer;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   BLOC RAPPORT FEU
+   ═══════════════════════════════════════════════════════════════════ */
+
+.bloc-rapport-feu {
+  background: var(--surface);
+  border: 1px solid var(--rouge);
+  border-left: 4px solid var(--rouge);
+  border-radius: var(--radius);
+  padding: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+
+.champs-feu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
