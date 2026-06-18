@@ -117,6 +117,26 @@ export async function genererPivotIntervention(intervention) {
     lignes.push(`Contexte : ${intervention.description}`);
   }
 
+  // Champs rapport feu
+  if (intervention.rapportFeu && Object.keys(intervention.rapportFeu).length > 0) {
+    const LABELS_FEU = {
+      localAffectation:              'Local affectation',
+      contactCDC:                    'Contact établi CDC',
+      auteur:                        'Auteur',
+      cause:                         'Cause',
+      degats:                        'Dégâts',
+      permisTravauxFeuOuvert:        'Permis de travail feu ouvert',
+      consignesSecuriteRespectees:   'Consignes de sécurité respectées',
+      intervention:                  'Intervention',
+      remarque:                      'Remarque'
+    };
+    lignes.push('');
+    lignes.push('[RAPPORT FEU]');
+    Object.entries(intervention.rapportFeu).forEach(([k, v]) => {
+      if (v && v.trim()) lignes.push(`${LABELS_FEU[k] || k} : ${v.trim()}`);
+    });
+  }
+
   lignes.push('');
   lignes.push(`[CHRONOLOGIE]`);
 
