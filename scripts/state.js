@@ -4,10 +4,11 @@
 const ECRANS = ['poste-selector', 'list', 'intervention-edit'];
 
 const state = {
-  ecranCourant: 'list',           // 'poste-selector' | 'list' | 'intervention-edit'
-  serviceCourant: null,           // objet Service ou null
-  interventionCouranteId: null,   // id de l'intervention en édition
-  observers: []
+  ecranCourant:          'list',   // 'poste-selector' | 'list' | 'intervention-edit'
+  serviceCourant:        null,     // objet Service ou null
+  interventionCouranteId: null,    // id de l'intervention en édition
+  gardesAConserver:      null,     // gardes à reporter sur le prochain service (changement de poste)
+  observers:             []
 };
 
 export function s() {
@@ -19,9 +20,14 @@ export function setEcran(nom, options = {}) {
     throw new Error(`Écran inconnu : ${nom}`);
   }
   state.ecranCourant = nom;
+
   if (options.interventionId !== undefined) {
     state.interventionCouranteId = options.interventionId;
   }
+  if (options.gardesAConserver !== undefined) {
+    state.gardesAConserver = options.gardesAConserver;
+  }
+
   notifier();
 }
 
