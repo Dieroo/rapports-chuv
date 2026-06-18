@@ -179,10 +179,14 @@ function renderEnTete(i) {
             <input type="text" id="champ-type" value="${escapeHtml(i.type || '')}" placeholder="ex: Surveillance par agent hors dispositif" />
           </label>
         </div>
+        ${!estEngagementCDS(etat.entrees) ? `
         <label class="champ">
           <span class="champ-label">Description (si tu la copies dans OnSphere)</span>
           <textarea id="champ-description" rows="2" placeholder="Phrase d'ouverture posant le contexte de l'intervention">${escapeHtml(i.description || '')}</textarea>
         </label>
+        ` : `
+        <p class="dialog-hint" style="margin:.25rem 0">Description gérée par l'opérateur CDS dans OnSphere.</p>
+        `}
       </details>
     </section>
   `;
@@ -192,6 +196,14 @@ function statutRequiresName(statutId) {
   if (!statutId) return true;
   const st = STATUTS_REFERENCE.find(s => s.id === statutId);
   return !st || st.requiresName;
+}
+
+// Retourne true si la première entrée engagement est via l'opérateur CDS
+// (dans ce cas, c'est lui qui ouvre OnSphere et saisit la Description)
+function estEngagementCDS(entrees) {
+  const engagement = entrees.find(e => e.template === 'engagement');
+  if (!engagement) return false; // pas encore d'engagement → on affiche la description par défaut
+  return engagement.texte.includes('opérateur CDS');
 }
 
 // === Binding horaires ===
@@ -423,23 +435,77 @@ function ouvrirDialog(titre, contenuHTML, onConfirmer) {
 }
 
 function ouvrirDialogEngagement(posteMoi) {
+  const autresPostes = POSTES.filter(p => p !== posteMoi);
+
   ouvrirDialog('Engagement', `
     <label class="champ">
       <span class="champ-label">Engagement par</span>
       <select id="d-engagement-source">
-        <option value="cds">Opérateur CDS</option>
-        <option value="medical">Médical en direct</option>
+        <optgroup label="Opérateur">
+          <option value="cds">Opérateur CDS</option>
+        </optgroup>
+        <optgroup label="Médical">
+          <option value="medical">Médical en direct</option>
+        </optgroup>
+        <optgroup label="Agent">
+          <option value="agent-brigade">Agent brigade (poste)</option>
+          <option value="agent-sp">Agent SP</option>
+        </optgroup>
+        <optgroup label="Autre">
+          <option value="visiteur">Visiteur</option>
+          <option value="accompagnant">Accompagnant</option>
+          <option value="admissionniste">Admissionniste</option>
+          <option value="employe-chuv">Employé CHUV</option>
+          <option value="garde-technique">Garde Technique</option>
+          <option value="personne-exterieure">Personne extérieure</option>
+          <option value="patient">Patient</option>
+        </optgroup>
       </select>
     </label>
+
+    <!-- Champ poste brigade — visible si agent-brigade -->
+    <label class="champ" id="d-engagement-poste-wrap" style="display:none">
+      <span class="champ-label">Poste</span>
+      <select id="d-engagement-poste">
+        <option value="">— Choisir —</option>
+        ${autresPostes.map(p => `<option value="${p}">${p}</option>`).join('')}
+        <option value="SP">SP</option>
+      </select>
+    </label>
+
+    <!-- Champ matricule SP — visible si agent-sp -->
+    <label class="champ" id="d-engagement-matricule-wrap" style="display:none">
+      <span class="champ-label">Matricule SP</span>
+      <input type="text" id="d-engagement-matricule" inputmode="numeric" placeholder="ex: 555190" />
+    </label>
+
     <label class="champ">
       <span class="champ-label">Motif court (optionnel)</span>
       <input type="text" id="d-engagement-motif" placeholder="ex: demande de surveillance patient à risque auto-agressif" />
     </label>
   `, async (overlay) => {
-    const source = overlay.querySelector('#d-engagement-source').value;
-    const motif  = overlay.querySelector('#d-engagement-motif').value;
-    await inserer(phraseEngagement({ source, motif }), 'engagement');
+    const source    = overlay.querySelector('#d-engagement-source').value;
+    const motif     = overlay.querySelector('#d-engagement-motif').value;
+    const poste     = overlay.querySelector('#d-engagement-poste')?.value || '';
+    const matricule = overlay.querySelector('#d-engagement-matricule')?.value || '';
+    await inserer(phraseEngagement({ source, motif, poste, matricule }), 'engagement');
+    // Après insertion, si ce n'est pas CDS on rerend pour afficher le champ Description
+    await renderInterventionEdit(etat.container);
   });
+
+  // Show/hide champs contextuels selon la source choisie
+  setTimeout(() => {
+    const sel = document.querySelector('#d-engagement-source');
+    const posteWrap = document.querySelector('#d-engagement-poste-wrap');
+    const matriculeWrap = document.querySelector('#d-engagement-matricule-wrap');
+    if (!sel) return;
+    const majVisibilite = () => {
+      posteWrap.style.display     = sel.value === 'agent-brigade' ? '' : 'none';
+      matriculeWrap.style.display = sel.value === 'agent-sp'      ? '' : 'none';
+    };
+    sel.addEventListener('change', majVisibilite);
+    majVisibilite();
+  }, 50);
 }
 
 function ouvrirDialogSurPlace(posteMoi) {
@@ -608,18 +674,33 @@ function ouvrirDialogReleveSP(posteMoi) {
 }
 
 function ouvrirDialogFinMedical() {
+  // Pré-remplissage depuis la dernière entrée "Sur place" de cette intervention
+  const dernierSurPlace = [...etat.entrees].reverse().find(e => e.template === 'surPlace');
+
+  let fonctionPre = '';
+  let nomPre = '';
+  if (dernierSurPlace) {
+    const fonctionTrouvee = FONCTIONS_MEDICALES.find(f => dernierSurPlace.texte.includes(f));
+    if (fonctionTrouvee) {
+      fonctionPre = fonctionTrouvee;
+      const apres = dernierSurPlace.texte.split(fonctionTrouvee)[1] || '';
+      nomPre = apres.replace(/^\s+/, '').replace(/\.$/, '').split('.')[0].trim();
+    }
+  }
+
   ouvrirDialog('Fin par médical', `
     <label class="champ">
       <span class="champ-label">Fonction</span>
       <select id="d-finmed-fonction">
         <option value="">— Aucune —</option>
-        ${FONCTIONS_MEDICALES.map(f => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('')}
+        ${FONCTIONS_MEDICALES.map(f => `<option value="${escapeHtml(f)}" ${fonctionPre === f ? 'selected' : ''}>${escapeHtml(f)}</option>`).join('')}
       </select>
     </label>
     <label class="champ">
       <span class="champ-label">Prénom et nom</span>
-      <input type="text" id="d-finmed-nom" placeholder="ex: Anne Marie KOUDRY" />
+      <input type="text" id="d-finmed-nom" value="${escapeHtml(nomPre)}" placeholder="ex: Anne Marie KOUDRY" />
     </label>
+    ${dernierSurPlace ? `<p class="dialog-hint">Pré-rempli depuis le contact "Sur place". Modifie si différent.</p>` : ''}
   `, async (overlay) => {
     const fonction = overlay.querySelector('#d-finmed-fonction').value;
     const nom      = overlay.querySelector('#d-finmed-nom').value;
