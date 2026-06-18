@@ -292,7 +292,7 @@ function bindEnTete() {
     rafraichirAideMemoire();
   });
 
-  c.querySelector('#champ-description').addEventListener('blur', async (e) => {
+  c.querySelector('#champ-description')?.addEventListener('blur', async (e) => {
     await majIntervention(etat.intervention.id, { description: e.target.value.trim() });
     etat.intervention.description = e.target.value.trim();
   });
