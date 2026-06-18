@@ -5,52 +5,46 @@
 import { formatRisques } from '../data/referentiels.js';
 
 export const TEMPLATES = {
-  engagement: {
-    label: 'Engagement',
-    description: 'Engagement par CDS ou médical en direct'
-  },
-  surPlace: {
-    label: 'Sur place',
-    description: 'Contact établi avec le personnel médical'
-  },
-  risques: {
-    label: 'Risques',
-    description: 'Risques identifiés + physique forte'
-  },
-  transmissionCDS: {
-    label: 'Transmission CDS',
-    description: 'Transmission radio au CDS'
-  },
-  transfert: {
-    label: 'Transfert',
-    description: 'Transfert du patient vers un autre lieu'
-  },
-  noteLibre: {
-    label: 'Note libre',
-    description: 'Entrée chronologique libre'
-  },
-  releveBrigade: {
-    label: 'Relève brigade',
-    description: 'Relevé par un agent de brigade'
-  },
-  releveSP: {
-    label: 'Relève SP',
-    description: 'Relevé par un agent de surveillance patient'
-  },
-  finMedical: {
-    label: 'Fin par médical',
-    description: 'Le médical met fin à la surveillance'
-  },
-  transfertAmbulance: {
-    label: 'Transfert ambulance',
-    description: 'Transfert vers un autre hôpital par ambulance'
-  }
+  engagement:       { label: 'Engagement',         description: 'Engagement par CDS, médical, agent ou autre' },
+  surPlace:         { label: 'Sur place',           description: 'Contact établi avec le personnel médical' },
+  risques:          { label: 'Risques',             description: 'Risques identifiés + physique forte' },
+  transmissionCDS:  { label: 'Transmission CDS',   description: 'Transmission radio au CDS' },
+  transfert:        { label: 'Transfert',           description: 'Transfert du patient vers un autre lieu' },
+  noteLibre:        { label: 'Note libre',          description: 'Entrée chronologique libre' },
+  releveBrigade:    { label: 'Relève brigade',      description: 'Relevé par un agent de brigade' },
+  releveSP:         { label: 'Relève SP',           description: 'Relevé par un agent de surveillance patient' },
+  finMedical:       { label: 'Fin par médical',     description: 'Le médical met fin à la surveillance' },
+  transfertAmbulance: { label: 'Transfert ambulance', description: 'Transfert vers un autre hôpital par ambulance' }
 };
 
-// Engagement par CDS ou médical
-export function phraseEngagement({ source, motif }) {
-  // source = 'cds' | 'medical'
-  const par = source === 'medical' ? 'le médical en direct' : "l'opérateur CDS";
+// ─── Labels lisibles par source d'engagement ─────────────────────────────────
+
+const LABELS_SOURCE = {
+  'cds':                 "l'opérateur CDS",
+  'medical':             'le médical en direct',
+  'agent-brigade':       null,  // géré dynamiquement avec le poste
+  'agent-sp':            null,  // géré dynamiquement avec le matricule
+  'visiteur':            'un visiteur',
+  'accompagnant':        'un accompagnant',
+  'admissionniste':      "l'admissionniste",
+  'employe-chuv':        "un employé CHUV",
+  'garde-technique':     'la garde technique',
+  'personne-exterieure': 'une personne extérieure',
+  'patient':             'le patient',
+};
+
+// Engagement — source étendue
+export function phraseEngagement({ source, motif, poste, matricule }) {
+  let par;
+
+  if (source === 'agent-brigade') {
+    par = poste ? `l'agent ${poste}` : "un agent de brigade";
+  } else if (source === 'agent-sp') {
+    par = matricule ? `l'agent SP matricule ${matricule}` : "un agent de la sécurité publique";
+  } else {
+    par = LABELS_SOURCE[source] || `${source}`;
+  }
+
   const sufMotif = motif && motif.trim() ? `, ${motif.trim()}` : '';
   return `Engagement par ${par}${sufMotif}.`;
 }
