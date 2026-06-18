@@ -165,7 +165,6 @@ export function renderTableauGardes(container, service, onMaj) {
                   <th>Lieu</th>
                   <th>Natel</th>
                   <th>Risques</th>
-                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -233,16 +232,20 @@ function renderLigneGarde(g, idx) {
       <td>
         <input type="text" class="garde-input garde-risques" placeholder="Risques" value="${escapeHtml(g.risques || '')}" data-champ="risques" data-idx="${idx}" />
       </td>
-      <td class="garde-icones">
-        <button type="button" class="icone-garde" data-action="notes" data-idx="${idx}" title="Notes" aria-label="Notes">📝</button>
-        <button type="button" class="icone-garde ${terminee ? 'icone-actif-termine' : ''}" data-action="terminer" data-idx="${idx}" title="Terminée" aria-label="Terminée">✅</button>
-        <button type="button" class="icone-garde ${suspendue ? 'icone-actif-suspend' : ''}" data-action="suspendre" data-idx="${idx}" title="Suspendue" aria-label="Suspendue">⏸</button>
-        <button type="button" class="icone-garde icone-suppr" data-action="supprimer" data-idx="${idx}" title="Supprimer" aria-label="Supprimer">🗑</button>
+    </tr>
+    <tr class="garde-icones-row${terminee ? ' garde-terminee' : suspendue ? ' garde-suspendue' : ''}" data-idx="${idx}">
+      <td colspan="6" class="garde-icones-cell">
+        <div class="garde-icones">
+          <button type="button" class="icone-garde" data-action="notes" data-idx="${idx}" title="Notes" aria-label="Notes">📝</button>
+          <button type="button" class="icone-garde ${terminee ? 'icone-actif-termine' : ''}" data-action="terminer" data-idx="${idx}" title="Terminée" aria-label="Terminée">✅</button>
+          <button type="button" class="icone-garde ${suspendue ? 'icone-actif-suspend' : ''}" data-action="suspendre" data-idx="${idx}" title="Suspendue" aria-label="Suspendue">⏸</button>
+          <button type="button" class="icone-garde icone-suppr" data-action="supprimer" data-idx="${idx}" title="Supprimer" aria-label="Supprimer">🗑</button>
+        </div>
       </td>
     </tr>
     ${notesOuvertes ? `
     <tr class="garde-notes-row" data-notes-idx="${idx}">
-      <td colspan="7">
+      <td colspan="6">
         <textarea class="garde-notes-texte" placeholder="Notes transmises, observations…" data-champ="notes" data-idx="${idx}">${escapeHtml(g.notes || '')}</textarea>
       </td>
     </tr>` : ''}
