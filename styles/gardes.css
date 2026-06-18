@@ -202,6 +202,27 @@
   padding: var(--sp-3) 0;
 }
 
+/* Bouton export Claude */
+.btn-claude {
+  background: #7c3aed;
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: var(--sp-2) var(--sp-3);
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-claude:active { opacity: .85; }
+
+.btn-copie-claude {
+  border-color: #7c3aed !important;
+  color: #7c3aed;
+}
+.btn-copie-claude:not(:disabled):hover {
+  background: #7c3aed;
+  color: #fff;
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    BANDEAU SERVICE — refonte
    ═══════════════════════════════════════════════════════════════════ */
