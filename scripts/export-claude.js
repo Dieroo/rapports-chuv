@@ -5,9 +5,9 @@
 //   - Noms du personnel soignant → conservés intégralement
 //   - Visiteurs, inconnus → "le visiteur", "la personne non identifiée"
 
-import { listerEntreesIntervention, listerInterventionsDuService } from '../db.js';
-import { formatReference } from '../../data/referentiels.js';
-import { copierDansPressePapier } from '../ui.js';
+import { listerEntreesIntervention, listerInterventionsDuService } from './db.js';
+import { formatReference } from '../data/referentiels.js';
+import { copierDansPressePapier } from './ui.js';
 
 // ─── Anonymisation ────────────────────────────────────────────────────────────
 
