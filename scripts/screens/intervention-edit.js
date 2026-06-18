@@ -20,34 +20,29 @@ import {
   escapeHtml, formatHeure, formatHeureInput, formatDuree, copierDansPressePapier,
   confirmer, demander
 } from '../ui.js';
+import { exporterIntervention } from '../export-claude.js';
 
-// État local de l'écran (résumé pour ne pas re-fetch à chaque interaction)
+// État local de l'écran
 let etat = {
   intervention: null,
   entrees: [],
   container: null,
-  suggestionsLieux: []  // pour datalist
+  suggestionsLieux: []
 };
 
 export async function renderInterventionEdit(container) {
   etat.container = container;
   const id = s().interventionCouranteId;
-  if (!id) {
-    setEcran('list');
-    return;
-  }
+  if (!id) { setEcran('list'); return; }
 
   etat.intervention = await getIntervention(id);
-  if (!etat.intervention) {
-    setEcran('list');
-    return;
-  }
-  etat.entrees = await listerEntreesIntervention(id);
+  if (!etat.intervention) { setEcran('list'); return; }
+
+  etat.entrees        = await listerEntreesIntervention(id);
   etat.suggestionsLieux = await getSuggestionsLieux();
 
-  const i = etat.intervention;
-  const demarre = i.debut !== null;
-  const termine = i.fin !== null;
+  const i        = etat.intervention;
+  const termine  = i.fin !== null;
   const posteMoi = (s().serviceCourant && s().serviceCourant.poste) || 'S?';
 
   container.innerHTML = `
@@ -55,9 +50,9 @@ export async function renderInterventionEdit(container) {
       <div class="app-header-top">
         <button type="button" class="btn-retour" data-action="retour" aria-label="Retour à la liste">← Retour</button>
         <div class="selecteur-theme" role="radiogroup" aria-label="Thème de l'application">
-          <button type="button" data-theme-set="clair"  aria-label="Mode clair" title="Mode clair">☀</button>
+          <button type="button" data-theme-set="clair"  aria-label="Mode clair"       title="Mode clair">☀</button>
           <button type="button" data-theme-set="auto"   aria-label="Mode automatique" title="Mode automatique">⌗</button>
-          <button type="button" data-theme-set="sombre" aria-label="Mode sombre" title="Mode sombre">☾</button>
+          <button type="button" data-theme-set="sombre" aria-label="Mode sombre"      title="Mode sombre">☾</button>
         </div>
       </div>
       <div class="header-meta">
@@ -102,11 +97,10 @@ export async function renderInterventionEdit(container) {
   bindFilChrono();
   bindCopies(posteMoi);
   bindActionsBas();
-
   container.querySelector('[data-action="retour"]').addEventListener('click', () => setEcran('list'));
 }
 
-// === Rendu : En-tête (lieu, référence, catégorie/type) ===
+// === Rendu : En-tête ===
 
 function renderEnTete(i) {
   const epingles = etat.suggestionsLieux.filter(l => l.epingle).slice(0, 5);
@@ -156,7 +150,6 @@ function renderEnTete(i) {
             `).join('')}
           </select>
         </label>
-
         <label class="champ ${!statutRequiresName(i.referenceStatut) ? 'champ-disabled' : ''}">
           <span class="champ-label">Nom</span>
           <input
@@ -190,10 +183,6 @@ function renderEnTete(i) {
           <span class="champ-label">Description (si tu la copies dans OnSphere)</span>
           <textarea id="champ-description" rows="2" placeholder="Phrase d'ouverture posant le contexte de l'intervention">${escapeHtml(i.description || '')}</textarea>
         </label>
-        <label class="champ">
-          <span class="champ-label">N° fiche OnSphere (saisi a posteriori)</span>
-          <input type="text" id="champ-numero" value="${escapeHtml(i.numeroOnsphere || '')}" placeholder="ex: 49819" inputmode="numeric" />
-        </label>
       </details>
     </section>
   `;
@@ -205,12 +194,10 @@ function statutRequiresName(statutId) {
   return !st || st.requiresName;
 }
 
-// === Binding : modification des horaires début/fin ===
+// === Binding horaires ===
 
 function bindHoraires() {
   const c = etat.container;
-
-  // Helper : applique HH:MM à la date existante (préserve l'année/mois/jour)
   const majDateHeure = async (champ, nouveauTime) => {
     const [h, m] = nouveauTime.split(':').map(Number);
     if (Number.isNaN(h) || Number.isNaN(m)) return;
@@ -218,121 +205,106 @@ function bindHoraires() {
     if (!dateActuelle) return;
     const nouvelleDate = new Date(dateActuelle);
     nouvelleDate.setHours(h, m, 0, 0);
-    const patch = { [champ]: nouvelleDate };
-    await majIntervention(etat.intervention.id, patch);
+    await majIntervention(etat.intervention.id, { [champ]: nouvelleDate });
     etat.intervention[champ] = nouvelleDate;
-    // Rafraîchir l'affichage de durée si fin présente
     const dureeEl = c.querySelector('#horaire-duree');
     if (dureeEl && etat.intervention.fin) {
       dureeEl.textContent = formatDuree(etat.intervention.debut, etat.intervention.fin);
     }
   };
-
   c.querySelector('#horaire-debut')?.addEventListener('change', async (e) => {
     await majDateHeure('debut', e.target.value);
   });
-
   c.querySelector('#horaire-fin')?.addEventListener('change', async (e) => {
     await majDateHeure('fin', e.target.value);
   });
 }
 
+// === Binding en-tête ===
+
 function bindEnTete() {
   const c = etat.container;
 
-  // Champ Lieu — sauvegarde au blur + sync de l'état pin
   const inputLieu = c.querySelector('#champ-lieu');
   inputLieu.addEventListener('blur', async () => {
     const v = inputLieu.value.trim();
     if (v !== etat.intervention.lieu) {
       await majIntervention(etat.intervention.id, { lieu: v });
       etat.intervention.lieu = v;
-      // Refresh le bouton pin
       const btnPin = c.querySelector('[data-action="pin-lieu"]');
       btnPin?.classList.toggle('pin-actif', estEpingle(v));
     }
   });
 
-  // Bouton pin lieu
   c.querySelector('[data-action="pin-lieu"]').addEventListener('click', () => {
     const v = inputLieu.value.trim();
     if (!v) return;
     togglePinLieu(v);
-    renderInterventionEdit(c); // rerender pour refléter les épinglés
+    renderInterventionEdit(c);
   });
 
-  // Puces de lieux épinglés — clic remplit le champ
   c.querySelectorAll('.puce-lieu').forEach(btn => {
     btn.addEventListener('click', () => {
       inputLieu.value = btn.dataset.lieu;
       inputLieu.focus();
-      // Place le curseur en fin (utile si le lieu finit par un espace pour le suffixe)
       inputLieu.setSelectionRange(inputLieu.value.length, inputLieu.value.length);
       inputLieu.dispatchEvent(new Event('blur'));
     });
   });
 
-  // Statut Référence
   c.querySelector('#champ-statut').addEventListener('change', async (e) => {
     const v = e.target.value || null;
     await majIntervention(etat.intervention.id, { referenceStatut: v });
     etat.intervention.referenceStatut = v;
-    // Active/désactive le champ Nom selon le statut
-    const inputNom = c.querySelector('#champ-nom');
+    const inputNom   = c.querySelector('#champ-nom');
     const requiresName = statutRequiresName(v);
     inputNom.disabled = !requiresName;
     inputNom.parentElement.classList.toggle('champ-disabled', !requiresName);
   });
 
-  // Nom
   c.querySelector('#champ-nom').addEventListener('blur', async (e) => {
     const v = e.target.value.trim();
     await majIntervention(etat.intervention.id, { referenceNom: v });
     etat.intervention.referenceNom = v;
   });
 
-  // Catégorie / Type / Description / N°
   c.querySelector('#champ-categorie').addEventListener('change', async (e) => {
     await majIntervention(etat.intervention.id, { categorie: e.target.value || null });
     etat.intervention.categorie = e.target.value || null;
-    // Rafraîchit l'aide-mémoire OnSphere
     rafraichirAideMemoire();
   });
+
   c.querySelector('#champ-type').addEventListener('blur', async (e) => {
     await majIntervention(etat.intervention.id, { type: e.target.value.trim() });
     etat.intervention.type = e.target.value.trim();
     rafraichirAideMemoire();
   });
+
   c.querySelector('#champ-description').addEventListener('blur', async (e) => {
     await majIntervention(etat.intervention.id, { description: e.target.value.trim() });
     etat.intervention.description = e.target.value.trim();
   });
-  c.querySelector('#champ-numero').addEventListener('blur', async (e) => {
-    await majIntervention(etat.intervention.id, { numeroOnsphere: e.target.value.trim() });
-    etat.intervention.numeroOnsphere = e.target.value.trim();
-  });
 }
 
 function rafraichirAideMemoire() {
-  const i = etat.intervention;
   const am = etat.container.querySelector('.aide-memoire-contenu');
-  if (am) am.innerHTML = aideMemoireHTML(i);
+  if (am) am.innerHTML = aideMemoireHTML(etat.intervention);
 }
 
 // === Rendu : Risques ===
 
 function renderRisques(i) {
   const risques = i.risques || [];
-  const cle = ['auto', 'hetero', 'fugue'];
-  const labels = { auto: 'Auto-agressif', hetero: 'Hétéro-agressif', fugue: 'Fugue' };
+  const cle     = ['auto', 'hetero', 'fugue'];
+  const labels  = { auto: 'Auto-agressif', hetero: 'Hétéro-agressif', fugue: 'Fugue' };
   return `
     <section class="bloc-risques">
       <div class="bloc-titre">Risques</div>
       <div class="chips-risques">
         ${cle.map(r => `
           <button type="button"
-                  class="chip ${risques.includes(r) ? 'chip-actif' : ''}"
-                  data-risque="${r}">
+            class="chip ${risques.includes(r) ? 'chip-actif' : ''}"
+            data-risque="${r}">
             ${escapeHtml(labels[r])}
           </button>
         `).join('')}
@@ -349,12 +321,10 @@ function bindRisques() {
   const c = etat.container;
   c.querySelectorAll('[data-risque]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      const r = btn.dataset.risque;
-      const cur = etat.intervention.risques || [];
-      const idx = cur.indexOf(r);
-      const nouveau = idx >= 0
-        ? cur.filter(x => x !== r)
-        : [...cur, r];
+      const r    = btn.dataset.risque;
+      const cur  = etat.intervention.risques || [];
+      const idx  = cur.indexOf(r);
+      const nouveau = idx >= 0 ? cur.filter(x => x !== r) : [...cur, r];
       await majIntervention(etat.intervention.id, { risques: nouveau });
       etat.intervention.risques = nouveau;
       btn.classList.toggle('chip-actif', nouveau.includes(r));
@@ -367,7 +337,7 @@ function bindRisques() {
   });
 }
 
-// === Rendu : Actions (boutons workflow Surveillance) ===
+// === Rendu : Actions workflow ===
 
 function renderActions(i, posteMoi) {
   return `
@@ -395,43 +365,27 @@ function renderActions(i, posteMoi) {
 }
 
 function bindActions(posteMoi) {
-  const c = etat.container;
-  c.querySelectorAll('[data-template]').forEach(btn => {
+  etat.container.querySelectorAll('[data-template]').forEach(btn => {
     btn.addEventListener('click', () => declencherTemplate(btn.dataset.template, posteMoi));
   });
 }
 
-// === Templates : ouverture des mini-dialogs ===
+// === Templates ===
 
 async function declencherTemplate(nom, posteMoi) {
   switch (nom) {
-    case 'engagement':
-      return ouvrirDialogEngagement(posteMoi);
-    case 'surPlace':
-      return ouvrirDialogSurPlace(posteMoi);
-    case 'risques':
-      return inserer(phraseRisques({
-        risques: etat.intervention.risques,
-        physiqueForte: etat.intervention.physiqueForteAutorisee
-      }), 'risques');
-    case 'transmissionCDS':
-      return inserer(phraseTransmissionCDS({ posteMoi }), 'transmissionCDS');
-    case 'transfert':
-      return ouvrirDialogTransfert();
-    case 'noteLibre':
-      return ouvrirDialogNoteLibre();
-    case 'renfortArrivee':
-      return ouvrirDialogRenfortArrivee(posteMoi);
-    case 'renfortDepart':
-      return ouvrirDialogRenfortDepart();
-    case 'releveBrigade':
-      return ouvrirDialogReleveBrigade(posteMoi);
-    case 'releveSP':
-      return ouvrirDialogReleveSP(posteMoi);
-    case 'finMedical':
-      return ouvrirDialogFinMedical();
-    case 'transfertAmbulance':
-      return ouvrirDialogTransfertAmbulance();
+    case 'engagement':       return ouvrirDialogEngagement(posteMoi);
+    case 'surPlace':         return ouvrirDialogSurPlace(posteMoi);
+    case 'risques':          return inserer(phraseRisques({ risques: etat.intervention.risques, physiqueForte: etat.intervention.physiqueForteAutorisee }), 'risques');
+    case 'transmissionCDS':  return inserer(phraseTransmissionCDS({ posteMoi }), 'transmissionCDS');
+    case 'transfert':        return ouvrirDialogTransfert();
+    case 'noteLibre':        return ouvrirDialogNoteLibre();
+    case 'renfortArrivee':   return ouvrirDialogRenfortArrivee(posteMoi);
+    case 'renfortDepart':    return ouvrirDialogRenfortDepart();
+    case 'releveBrigade':    return ouvrirDialogReleveBrigade(posteMoi);
+    case 'releveSP':         return ouvrirDialogReleveSP(posteMoi);
+    case 'finMedical':       return ouvrirDialogFinMedical();
+    case 'transfertAmbulance': return ouvrirDialogTransfertAmbulance();
   }
 }
 
@@ -451,31 +405,21 @@ function ouvrirDialog(titre, contenuHTML, onConfirmer) {
       <div class="dialog-contenu">${contenuHTML}</div>
       <div class="dialog-actions">
         <button type="button" class="btn-secondaire" data-dialog="annuler">Annuler</button>
-        <button type="button" class="btn-primaire" data-dialog="confirmer">Insérer</button>
+        <button type="button" class="btn-primaire"   data-dialog="confirmer">Insérer</button>
       </div>
     </div>
   `;
   document.body.appendChild(overlay);
-
   const fermer = () => overlay.remove();
   overlay.querySelector('[data-dialog="annuler"]').addEventListener('click', fermer);
   overlay.querySelector('[data-dialog="confirmer"]').addEventListener('click', async () => {
     try {
       const ok = await onConfirmer(overlay);
       if (ok !== false) fermer();
-    } catch (e) {
-      console.error('[Dialog] Erreur confirmation:', e);
-    }
+    } catch (e) { console.error('[Dialog] Erreur:', e); }
   });
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) fermer();
-  });
-
-  // Focus sur le premier champ texte
-  setTimeout(() => {
-    const focusable = overlay.querySelector('input, textarea, select');
-    if (focusable) focusable.focus();
-  }, 50);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) fermer(); });
+  setTimeout(() => { overlay.querySelector('input, textarea, select')?.focus(); }, 50);
 }
 
 function ouvrirDialogEngagement(posteMoi) {
@@ -493,7 +437,7 @@ function ouvrirDialogEngagement(posteMoi) {
     </label>
   `, async (overlay) => {
     const source = overlay.querySelector('#d-engagement-source').value;
-    const motif = overlay.querySelector('#d-engagement-motif').value;
+    const motif  = overlay.querySelector('#d-engagement-motif').value;
     await inserer(phraseEngagement({ source, motif }), 'engagement');
   });
 }
@@ -513,7 +457,7 @@ function ouvrirDialogSurPlace(posteMoi) {
     </label>
   `, async (overlay) => {
     const fonction = overlay.querySelector('#d-surplace-fonction').value;
-    const nom = overlay.querySelector('#d-surplace-nom').value;
+    const nom      = overlay.querySelector('#d-surplace-nom').value;
     await inserer(phraseSurPlace({ posteMoi, fonction, nom }), 'surPlace');
   });
 }
@@ -578,30 +522,24 @@ function ouvrirDialogRenfortArrivee(posteMoi) {
     const libre = overlay.querySelector('#d-renfort-libre').value.trim();
     const label = libre || poste;
     if (!label) return false;
-
-    // Ajoute dans le tableau renforts de l'intervention
     const renforts = Array.isArray(etat.intervention.renforts) ? etat.intervention.renforts.slice() : [];
     renforts.push({ id: idRenfort(), label, heureArrivee: new Date().toISOString(), heureFin: null });
     await majIntervention(etat.intervention.id, { renforts });
     etat.intervention.renforts = renforts;
-
-    // Entrée chronologique
     await inserer(`Arrivée du ${label} sur place.`, 'renfortArrivee');
   });
 }
 
 function ouvrirDialogRenfortDepart() {
   const renforts = (etat.intervention.renforts || []).filter(r => !r.heureFin);
-
   if (renforts.length === 0) {
     ouvrirDialog('Départ renfort', `
       <p style="color:var(--texte-faible);text-align:center;padding:var(--sp-4) 0">
         Aucun renfort actif sur cette intervention.
       </p>
-    `, async () => { /* rien à faire */ });
+    `, async () => {});
     return;
   }
-
   ouvrirDialog('Départ renfort', `
     <p class="dialog-hint" style="margin-bottom:var(--sp-3)">Sélectionne l'agent qui se désengage.</p>
     <div class="liste-renforts-actifs">
@@ -620,26 +558,21 @@ function ouvrirDialogRenfortDepart() {
         `;
       }).join('')}
     </div>
-  `, async () => { /* le bouton global "Insérer" ne fait rien ici */ });
+  `, async () => {});
 
-  // Les boutons individuels gèrent leur propre action
   setTimeout(() => {
     document.querySelectorAll('.btn-renfort-depart').forEach(btn => {
       btn.addEventListener('click', async () => {
         const renfortId = btn.dataset.renfortId;
-        const renfort = renforts.find(r => r.id === renfortId);
+        const renfort   = renforts.find(r => r.id === renfortId);
         if (!renfort) return;
-
         const maintenant = new Date();
-        const renforts2 = (etat.intervention.renforts || []).map(r =>
+        const renforts2  = (etat.intervention.renforts || []).map(r =>
           r.id === renfortId ? { ...r, heureFin: maintenant.toISOString() } : r
         );
         await majIntervention(etat.intervention.id, { renforts: renforts2 });
         etat.intervention.renforts = renforts2;
-
         await inserer(`${renfort.label} quitte l'intervention.`, 'renfortDepart');
-
-        // Ferme le dialog
         document.querySelector('.dialog-overlay')?.remove();
       });
     });
@@ -689,7 +622,7 @@ function ouvrirDialogFinMedical() {
     </label>
   `, async (overlay) => {
     const fonction = overlay.querySelector('#d-finmed-fonction').value;
-    const nom = overlay.querySelector('#d-finmed-nom').value;
+    const nom      = overlay.querySelector('#d-finmed-nom').value;
     await inserer(phraseFinMedical({ fonction, nom }), 'finMedical');
   });
 }
@@ -708,7 +641,7 @@ function ouvrirDialogTransfertAmbulance() {
       <input type="text" id="d-amb-dest" placeholder="ex: Cery, autre hôpital..." />
     </label>
   `, async (overlay) => {
-    const securise = overlay.querySelector('#d-amb-type').value === 'securise';
+    const securise    = overlay.querySelector('#d-amb-type').value === 'securise';
     const destination = overlay.querySelector('#d-amb-dest').value;
     await inserer(phraseTransfertAmbulance({ securise, destination }), 'transfertAmbulance');
   });
@@ -749,13 +682,11 @@ function renderFilChrono(entrees) {
 function bindFilChrono() {
   const c = etat.container;
 
-  // Heure
   c.querySelectorAll('.entree-heure').forEach(input => {
     input.addEventListener('change', async () => {
-      const id = parseInt(input.dataset.id, 10);
+      const id   = parseInt(input.dataset.id, 10);
       const [h, m] = input.value.split(':').map(Number);
       if (Number.isNaN(h) || Number.isNaN(m)) return;
-      // On garde la même date, on change juste H:M
       const entree = etat.entrees.find(e => e.id === id);
       if (!entree) return;
       const d = new Date(entree.heure);
@@ -765,36 +696,29 @@ function bindFilChrono() {
     });
   });
 
-  // Texte
   c.querySelectorAll('.entree-texte').forEach(ta => {
     ta.addEventListener('blur', async () => {
       const id = parseInt(ta.dataset.id, 10);
-      const v = ta.value.trim();
+      const v  = ta.value.trim();
       await majEntree(id, { texte: v });
       const e = etat.entrees.find(x => x.id === id);
       if (e) e.texte = v;
     });
-    // Auto-resize basique
-    const adjust = () => {
-      ta.style.height = 'auto';
-      ta.style.height = ta.scrollHeight + 'px';
-    };
+    const adjust = () => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; };
     ta.addEventListener('input', adjust);
     setTimeout(adjust, 0);
   });
 
-  // Copier une entrée
   c.querySelectorAll('[data-copy-id]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const id = parseInt(btn.dataset.copyId, 10);
-      const e = etat.entrees.find(x => x.id === id);
+      const e  = etat.entrees.find(x => x.id === id);
       if (!e) return;
       const ok = await copierDansPressePapier(e.texte, btn);
       if (!ok) alert('Échec de la copie. Sélectionne le texte manuellement.');
     });
   });
 
-  // Supprimer une entrée
   c.querySelectorAll('[data-del-id]').forEach(btn => {
     btn.addEventListener('click', async () => {
       if (!confirmer('Supprimer cette entrée chronologique ?')) return;
@@ -819,10 +743,9 @@ function renderAideMemoire(i) {
 
 function aideMemoireHTML(i) {
   const rows = [
-    { label: 'Lieu', val: i.lieu },
+    { label: 'Lieu',      val: i.lieu },
     { label: 'Catégorie', val: i.categorie },
-    { label: 'Type', val: i.type },
-    { label: 'N° fiche OnSphere', val: i.numeroOnsphere }
+    { label: 'Type',      val: i.type },
   ];
   return `<dl class="aide-memoire-dl">
     ${rows.map(r => `
@@ -835,9 +758,10 @@ function aideMemoireHTML(i) {
 // === Rendu : Boutons de copie ===
 
 function renderCopies(i, entrees, posteMoi) {
-  const refTxt = formatReference(i.referenceStatut, i.referenceNom);
-  const descTxt = (i.description || '').trim();
+  const refTxt      = formatReference(i.referenceStatut, i.referenceNom);
+  const descTxt     = (i.description || '').trim();
   const aDescription = descTxt.length > 0;
+
   return `
     <section class="bloc-copies">
       <div class="bloc-titre">Copier vers OnSphere</div>
@@ -846,15 +770,23 @@ function renderCopies(i, entrees, posteMoi) {
           📋 Référence
           <span class="btn-copie-preview">${escapeHtml(refTxt || '—')}</span>
         </button>
+
         <button type="button" class="btn-copie" data-copy="description" ${aDescription ? '' : 'disabled'}>
           📋 Description
           <span class="btn-copie-preview">${aDescription ? escapeHtml(descTxt.slice(0, 80) + (descTxt.length > 80 ? '…' : '')) : '<em>vide</em>'}</span>
         </button>
+
         <button type="button" class="btn-copie" data-copy="rapport" ${entrees.length > 0 ? '' : 'disabled'}>
           📋 Rapport entier (bloc)
           <span class="btn-copie-preview">${entrees.length} entrée${entrees.length > 1 ? 's' : ''}</span>
         </button>
+
+        <button type="button" class="btn-copie btn-copie-claude" data-copy="export-claude" ${entrees.length > 0 ? '' : 'disabled'}>
+          🤖 Exporter pour Claude
+          <span class="btn-copie-preview">Copie le rapport anonymisé — colle dans ton projet Claude "Rapport"</span>
+        </button>
       </div>
+
       <p class="copie-note">
         Pour OnSphere, copie le Rapport <strong>entrée par entrée</strong> avec les 📋 du fil chronologique (OnSphere écrase les sauts de ligne d'un collage en bloc).
       </p>
@@ -864,10 +796,18 @@ function renderCopies(i, entrees, posteMoi) {
 
 function bindCopies(posteMoi) {
   const c = etat.container;
+
   c.querySelectorAll('[data-copy]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const type = btn.dataset.copy;
-      const i = etat.intervention;
+      const i    = etat.intervention;
+
+      // Export Claude — module dédié gère la copie
+      if (type === 'export-claude') {
+        await exporterIntervention(i, btn);
+        return;
+      }
+
       let texte = '';
       if (type === 'reference') {
         texte = formatReference(i.referenceStatut, i.referenceNom);
@@ -876,6 +816,7 @@ function bindCopies(posteMoi) {
       } else if (type === 'rapport') {
         texte = etat.entrees.map(e => `${formatHeure(e.heure)} — ${e.texte}`).join('\n');
       }
+
       if (!texte) return;
       const ok = await copierDansPressePapier(texte, btn);
       if (!ok) alert('Échec de la copie. Sélectionne le texte manuellement.');
@@ -883,7 +824,7 @@ function bindCopies(posteMoi) {
   });
 }
 
-// === Rendu : Actions du bas (terminer, supprimer) ===
+// === Rendu : Actions du bas ===
 
 function renderActionsBas(i, termine) {
   return `
@@ -906,16 +847,19 @@ function renderActionsBas(i, termine) {
 
 function bindActionsBas() {
   const c = etat.container;
+
   c.querySelector('[data-action="terminer"]')?.addEventListener('click', async () => {
     if (!confirmer("Terminer cette intervention ? L'heure de fin sera enregistrée maintenant.")) return;
     await terminerIntervention(etat.intervention.id);
     await renderInterventionEdit(c);
   });
+
   c.querySelector('[data-action="rouvrir"]')?.addEventListener('click', async () => {
     if (!confirmer('Rouvrir cette intervention ?')) return;
     await majIntervention(etat.intervention.id, { fin: null });
     await renderInterventionEdit(c);
   });
+
   c.querySelector('[data-action="supprimer"]')?.addEventListener('click', async () => {
     if (!confirmer('Supprimer définitivement cette intervention et toutes ses entrées ?')) return;
     await supprimerIntervention(etat.intervention.id);
