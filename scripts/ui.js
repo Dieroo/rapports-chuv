@@ -148,3 +148,18 @@ export function demander(message, defaut = '') {
   const reponse = window.prompt(message, defaut);
   return reponse == null ? null : reponse.trim();
 }
+
+// Formate un nom selon la règle : "prénom NOM"
+// Le premier token est mis en minuscules (prénom), les suivants en majuscules (NOM).
+// Ex : "SORAYA selmani" → "soraya SELMANI"
+//      "anne marie koudry" → "anne marie KOUDRY" (prénom composé : tout avant le dernier token)
+// Règle simplifiée retenue : 1er token = prénom (minuscules), reste = NOM (majuscules).
+export function formatNom(valeur) {
+  if (!valeur) return '';
+  const tokens = valeur.trim().split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return '';
+  if (tokens.length === 1) return tokens[0].toLowerCase();
+  const prenom = tokens[0].toLowerCase();
+  const nom    = tokens.slice(1).map(t => t.toUpperCase()).join(' ');
+  return `${prenom} ${nom}`;
+}
