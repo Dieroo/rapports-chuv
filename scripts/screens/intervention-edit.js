@@ -18,7 +18,7 @@ import { setEcran, setInterventionCourante, s } from '../state.js';
 import { getSuggestionsLieux, togglePinLieu, estEpingle } from '../lieux-store.js';
 import {
   escapeHtml, formatHeure, formatHeureInput, formatDuree, copierDansPressePapier,
-  confirmer, demander
+  confirmer, demander, formatNom
 } from '../ui.js';
 import { exporterIntervention } from '../export-claude.js';
 
@@ -276,7 +276,8 @@ function bindEnTete() {
   });
 
   c.querySelector('#champ-nom').addEventListener('blur', async (e) => {
-    const v = e.target.value.trim();
+    const v = formatNom(e.target.value);
+    e.target.value = v;
     await majIntervention(etat.intervention.id, { referenceNom: v });
     etat.intervention.referenceNom = v;
   });
@@ -303,6 +304,10 @@ function bindEnTete() {
       await majIntervention(etat.intervention.id, { type: val });
       etat.intervention.type = val;
       rafraichirAideMemoire();
+      // Entrée auto pour "Objet dangereux"
+      if (val === 'Objet dangereux') {
+        await insererEntreeObjetDangereux();
+      }
     }
   });
 
@@ -477,6 +482,38 @@ async function declencherTemplate(nom, posteMoi) {
   }
 }
 
+// Extrait le nom du contact depuis la dernière entrée "Sur place" de l'intervention
+function extraireDernierContactSurPlace() {
+  const derniere = [...etat.entrees].reverse().find(e => e.template === 'surPlace');
+  if (!derniere) return '';
+  // Format attendu : "S255 sur place. Contact établi avec Infirmier(ère) soraya SELMANI."
+  // On extrait tout ce qui suit "avec "
+  const match = derniere.texte.match(/avec\s+(.+?)\.?\s*$/i);
+  if (!match) return '';
+  // Retire la fonction médicale si elle précède le nom
+  let reste = match[1].trim();
+  for (const f of FONCTIONS_MEDICALES) {
+    if (reste.startsWith(f)) {
+      reste = reste.slice(f.length).trim();
+      break;
+    }
+  }
+  return reste;
+}
+
+// Insère automatiquement l'entrée pré-remplie pour "Saisie / Confiscation — Objet dangereux"
+async function insererEntreeObjetDangereux() {
+  const demandeur = extraireDernierContactSurPlace();
+  const dateSaisie = formatHeureInput(etat.intervention.debut);
+  const texte = 'Demandeur : ' + (demandeur || '')
+    + '\nType d\'objet dangereux : '
+    + '\nDescription : '
+    + '\nDate de la saisie : ' + dateSaisie
+    + '\n\nCopie de la quittance remise dans le dossier du patient. Informations archivées au cahier de suivi selon procédure.';
+  await ajouterEntree(etat.intervention.id, texte, 'objetDangereux', etat.intervention.debut);
+  await renderInterventionEdit(etat.container);
+}
+
 async function inserer(texte, template = null) {
   await ajouterEntree(etat.intervention.id, texte, template);
   await renderInterventionEdit(etat.container);
@@ -595,13 +632,24 @@ function ouvrirDialogSurPlace(posteMoi) {
     </label>
     <label class="champ">
       <span class="champ-label">Prénom et nom</span>
-      <input type="text" id="d-surplace-nom" placeholder="ex: Soraya SELMANI" />
+      <input type="text" id="d-surplace-nom" placeholder="ex: soraya SELMANI" />
     </label>
   `, async (overlay) => {
     const fonction = overlay.querySelector('#d-surplace-fonction').value;
-    const nom      = overlay.querySelector('#d-surplace-nom').value;
+    const nomBrut  = overlay.querySelector('#d-surplace-nom').value;
+    const nom      = formatNom(nomBrut);
     await inserer(phraseSurPlace({ posteMoi, fonction, nom }), 'surPlace');
   });
+
+  // Formatage au blur sur le champ nom du dialog
+  setTimeout(() => {
+    const inputNom = document.querySelector('#d-surplace-nom');
+    if (inputNom) {
+      inputNom.addEventListener('blur', () => {
+        inputNom.value = formatNom(inputNom.value);
+      });
+    }
+  }, 50);
 }
 
 function ouvrirDialogTransfert() {
@@ -774,14 +822,25 @@ function ouvrirDialogFinMedical() {
     </label>
     <label class="champ">
       <span class="champ-label">Prénom et nom</span>
-      <input type="text" id="d-finmed-nom" value="${escapeHtml(nomPre)}" placeholder="ex: Anne Marie KOUDRY" />
+      <input type="text" id="d-finmed-nom" value="${escapeHtml(nomPre)}" placeholder="ex: anne marie KOUDRY" />
     </label>
     ${dernierSurPlace ? `<p class="dialog-hint">Pré-rempli depuis le contact "Sur place". Modifie si différent.</p>` : ''}
   `, async (overlay) => {
     const fonction = overlay.querySelector('#d-finmed-fonction').value;
-    const nom      = overlay.querySelector('#d-finmed-nom').value;
+    const nomBrut  = overlay.querySelector('#d-finmed-nom').value;
+    const nom      = formatNom(nomBrut);
     await inserer(phraseFinMedical({ fonction, nom }), 'finMedical');
   });
+
+  // Formatage au blur sur le champ nom du dialog
+  setTimeout(() => {
+    const inputNom = document.querySelector('#d-finmed-nom');
+    if (inputNom) {
+      inputNom.addEventListener('blur', () => {
+        inputNom.value = formatNom(inputNom.value);
+      });
+    }
+  }, 50);
 }
 
 function ouvrirDialogTransfertAmbulance() {
