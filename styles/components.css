@@ -952,12 +952,22 @@
 
 .tache {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--sp-2);
   padding: var(--sp-2);
   border: 1px solid var(--bord);
   border-radius: var(--radius-sm);
   background: var(--fond);
+  flex-wrap: wrap;
+}
+
+/* Ligne principale : texte + occurrences */
+.tache-ligne {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 0;
 }
 
 .tache-cocher {
@@ -988,6 +998,78 @@
   text-decoration: line-through;
 }
 
+/* Rang des occurrences (puces répétitions) */
+.tache-occurrences {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-1);
+}
+
+/* Puce cochée */
+.occ-cochee {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--accent-fond);
+  border: 1px solid var(--accent-bord);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+}
+
+/* Puce non cochée */
+.occ-vide {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: 1px solid var(--bord);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  color: var(--texte-faible);
+}
+
+.occ-check {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.occ-label {
+  font-size: 11px;
+  color: var(--texte-faible);
+}
+
+/* Bouton heure — tap pour modifier */
+.occ-heure {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--accent-texte);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline dotted;
+  min-height: unset;
+}
+.occ-heure:focus-visible {
+  outline: 2px solid var(--accent);
+  border-radius: 2px;
+}
+
+/* Input heure inline (après tap) */
+.occ-heure-input {
+  width: 80px;
+  font-size: var(--fs-sm);
+  padding: 1px 4px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--fond);
+  color: var(--texte);
+}
+
 .tache-actions {
   display: flex;
   gap: var(--sp-1);
@@ -1006,10 +1088,12 @@
   display: flex;
   gap: var(--sp-2);
   align-items: stretch;
+  flex-wrap: wrap;
 }
 
 .tache-ajout-input {
   flex: 1;
+  min-width: 120px;
   padding: var(--sp-2) var(--sp-3);
   font-family: var(--font-sans);
   font-size: var(--fs-base);
@@ -1020,6 +1104,36 @@
   min-height: var(--touch-target);
 }
 .tache-ajout-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Bloc "× N répétitions" */
+.tache-ajout-repetitions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.tache-rep-label {
+  font-size: var(--fs-sm);
+  color: var(--texte-faible);
+  white-space: nowrap;
+}
+
+.tache-rep-input {
+  width: 52px;
+  padding: var(--sp-1) var(--sp-2);
+  font-size: var(--fs-base);
+  background: var(--fond);
+  color: var(--texte);
+  border: 1px solid var(--bord);
+  border-radius: var(--radius-md);
+  min-height: var(--touch-target);
+  text-align: center;
+}
+.tache-rep-input:focus {
   outline: none;
   border-color: var(--accent);
 }
