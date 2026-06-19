@@ -151,42 +151,24 @@ export async function genererPivotIntervention(intervention) {
   return lignes.join('\n');
 }
 
-// ─── Génération texte pivot — service complet ─────────────────────────────────
+// ─── Génération texte pivot — service complet (interventions uniquement) ──────
+// Contenu exporté : [SERVICE] + [INTERVENTION 1/N]…[N/N] triés chronologiquement.
+// Transinfo, gardes, notes du service sont volontairement exclus de cet export.
 
 export async function genererPivotService(service) {
-  const interventions = await listerInterventionsDuService(service.id);
+  // Récupère les interventions du service triées chronologiquement (la plus ancienne en premier)
+  const interventionsBrutes = await listerInterventionsDuService(service.id);
+  const interventions = interventionsBrutes.slice().sort((a, b) => new Date(a.debut) - new Date(b.debut));
 
   const lignes = [];
 
   // En-tête service
-  lignes.push(`═══════════════════════════════════════`);
-  lignes.push(`SERVICE : ${service.poste}`);
+  lignes.push(`[SERVICE]`);
+  lignes.push(`Poste : ${service.poste}`);
   lignes.push(`Date : ${fmtDate(service.debut)}`);
   lignes.push(`Prise de service : ${fmtHeure(service.heureDebutService || service.debut)}`);
   if (service.heureFinService) {
     lignes.push(`Fin de service : ${fmtHeure(service.heureFinService)}`);
-  }
-  lignes.push(`═══════════════════════════════════════`);
-
-  // Transinfo reçue
-  if (service.transmissionRecue && service.transmissionRecue.trim()) {
-    lignes.push('');
-    lignes.push(`[TRANSINFO REÇUE]`);
-    lignes.push(service.transmissionRecue.trim());
-  }
-
-  // Gardes en cours au moment du service (pour contexte)
-  if (Array.isArray(service.gardes) && service.gardes.length > 0) {
-    const gardesActives = service.gardes.filter(g => !g.terminee);
-    if (gardesActives.length > 0) {
-      lignes.push('');
-      lignes.push(`[GARDES EN COURS]`);
-      gardesActives.forEach(g => {
-        const parts = [g.statut, g.lieu ? `${g.batiment || ''} ${g.lieuVal || ''} ${g.lieuSuffixe || ''}`.trim() : null, g.risques].filter(Boolean);
-        lignes.push(`• ${parts.join(' | ')}`);
-        // Les noms des gardés sont volontairement omis
-      });
-    }
   }
 
   // Interventions
@@ -196,19 +178,12 @@ export async function genererPivotService(service) {
   } else {
     for (let i = 0; i < interventions.length; i++) {
       lignes.push('');
-      lignes.push(`───────────────────────────────────────`);
-      lignes.push(`INTERVENTION ${i + 1} / ${interventions.length}`);
-      lignes.push(`───────────────────────────────────────`);
+      lignes.push(`[INTERVENTION ${i + 1}/${interventions.length}]`);
       const pivot = await genererPivotIntervention(interventions[i]);
-      lignes.push(pivot);
+      // On retire la ligne "[INTERVENTION]" déjà présente dans genererPivotIntervention
+      const lignesPivot = pivot.split('\n').filter(l => l !== '[INTERVENTION]');
+      lignes.push(...lignesPivot);
     }
-  }
-
-  // Transinfo relève
-  if (service.transinfoReleve && service.transinfoReleve.trim()) {
-    lignes.push('');
-    lignes.push(`[TRANSINFO RELÈVE]`);
-    lignes.push(service.transinfoReleve.trim());
   }
 
   return lignes.join('\n');
