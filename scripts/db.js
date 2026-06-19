@@ -127,15 +127,17 @@ export async function listerServices() {
 
 // === Tâches récurrentes ===
 
-export async function enregistrerTacheRecurrente(texte) {
+export async function enregistrerTacheRecurrente(texte, repetitions = 1) {
   const t = (texte || '').trim();
   if (!t) return null;
+  const n = Math.max(1, Math.min(99, parseInt(repetitions, 10) || 1));
 
   const existante = await db.tachesRecurrentes.where('texte').equals(t).first();
   if (existante) {
     await db.tachesRecurrentes.update(existante.id, {
       compteur: (existante.compteur || 0) + 1,
-      derniereUtilisation: new Date()
+      derniereUtilisation: new Date(),
+      repetitions: n   // met à jour si l'utilisateur a changé le nombre
     });
     return await db.tachesRecurrentes.get(existante.id);
   } else {
@@ -143,7 +145,8 @@ export async function enregistrerTacheRecurrente(texte) {
       texte: t,
       compteur: 1,
       derniereUtilisation: new Date(),
-      epinglee: 0
+      epinglee: 0,
+      repetitions: n
     });
     return await db.tachesRecurrentes.get(id);
   }
