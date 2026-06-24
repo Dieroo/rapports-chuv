@@ -7,7 +7,8 @@ import {
 } from '../db.js';
 import {
   STATUTS_REFERENCE, FONCTIONS_MEDICALES, CATEGORIES, TYPES_PAR_CATEGORIE,
-  CHAMPS_RAPPORT_FEU, POSTES, formatReference, formatRisques
+  CHAMPS_RAPPORT_FEU, POSTES, formatReference, formatRisques,
+  BATIMENTS_LISTE, LIEUX_PAR_BATIMENT, composerLieu
 } from '../../data/referentiels.js';
 import {
   phraseEngagement, phraseSurPlace, phraseRisques, phraseTransmissionCDS,
@@ -106,6 +107,9 @@ export async function renderInterventionEdit(container) {
 
 function renderEnTete(i) {
   const epingles = etat.suggestionsLieux.filter(l => l.epingle).slice(0, 5);
+  // Décomposer i.lieu pour pré-remplir la cascade si possible
+  const lieuCascade = i._lieuCascade || { batiment: '', lieuVal: '', etageOption: '', suffixe: '' };
+
   return `
     <section class="bloc-entete">
       ${epingles.length > 0 ? `
@@ -118,27 +122,52 @@ function renderEnTete(i) {
         </div>
       ` : ''}
 
-      <label class="champ">
+      <!-- Cascade lieu -->
+      <div class="champ">
         <span class="champ-label">Lieu</span>
-        <div class="champ-lieu-row">
-          <input
-            type="text"
-            id="champ-lieu"
-            value="${escapeHtml(i.lieu || '')}"
-            placeholder="ex: BU44/07/PLI"
-            list="datalist-lieux"
-            autocomplete="off"
-            spellcheck="false"
-          />
-          <button
-            type="button"
-            class="btn-pin ${estEpingle(i.lieu || '') ? 'pin-actif' : ''}"
-            data-action="pin-lieu"
-            aria-label="Épingler ce lieu"
-            title="Épingler ce lieu"
-          >★</button>
+        <div class="cascade-lieu-wrap">
+          <!-- Résultat composé + épingle -->
+          <div class="cascade-lieu-resultat-row">
+            <span class="cascade-lieu-resultat" id="cascade-lieu-resultat">${escapeHtml(i.lieu || '—')}</span>
+            <button type="button"
+              class="btn-pin ${estEpingle(i.lieu || '') ? 'pin-actif' : ''}"
+              id="btn-pin-lieu"
+              aria-label="Épingler ce lieu"
+              title="Épingler ce lieu">★</button>
+          </div>
+          <!-- Étape 1 : Bâtiment -->
+          <div class="cascade-row">
+            <select id="casc-batiment" class="casc-select">
+              <option value="">— Bâtiment —</option>
+              ${BATIMENTS_LISTE.map(b => `<option value="${b}"${lieuCascade.batiment === b ? ' selected' : ''}>${b}</option>`).join('')}
+              <option value="__libre__"${lieuCascade.batiment === '__libre__' ? ' selected' : ''}>Autre (saisie libre)</option>
+            </select>
+          </div>
+          <!-- Étape 2 : Service/Étage — visible si bâtiment choisi -->
+          <div class="cascade-row" id="casc-row-lieu" style="${lieuCascade.batiment && lieuCascade.batiment !== '__libre__' ? '' : 'display:none'}">
+            <select id="casc-lieu" class="casc-select">
+              ${renderCascadeOptionsLieu(lieuCascade.batiment, lieuCascade.lieuVal)}
+            </select>
+          </div>
+          <!-- Étape 3 : Type (chambre / soins interm.) — visible si étage choisi et options disponibles -->
+          <div class="cascade-row" id="casc-row-etage-opt" style="${lieuCascade.lieuVal && lieuCascade.lieuVal.startsWith('etage-') ? '' : 'display:none'}">
+            ${renderCascadeEtageOpt(lieuCascade.batiment, lieuCascade.lieuVal, lieuCascade.etageOption)}
+          </div>
+          <!-- Étape 4 : Suffixe (lettre, select, numéro) -->
+          <div class="cascade-row" id="casc-row-suffixe" style="${renderCascadeSuffixe(lieuCascade.batiment, lieuCascade.lieuVal, lieuCascade.etageOption, lieuCascade.suffixe) ? '' : 'display:none'}">
+            ${renderCascadeSuffixe(lieuCascade.batiment, lieuCascade.lieuVal, lieuCascade.etageOption, lieuCascade.suffixe)}
+          </div>
+          <!-- Saisie libre si bâtiment = __libre__ -->
+          <div class="cascade-row" id="casc-row-libre" style="${lieuCascade.batiment === '__libre__' ? '' : 'display:none'}">
+            <input type="text" id="casc-libre" class="casc-input-libre"
+              placeholder="ex: BU44/07/PLI" value="${escapeHtml(lieuCascade.batiment === '__libre__' ? (i.lieu || '') : '')}"
+              list="datalist-lieux" autocomplete="off" spellcheck="false" />
+            <datalist id="datalist-lieux">
+              ${etat.suggestionsLieux.map(s => `<option value="${escapeHtml(s.lieu)}"></option>`).join('')}
+            </datalist>
+          </div>
         </div>
-      </label>
+      </div>
 
       <div class="champ-paire">
         <label class="champ">
@@ -194,6 +223,96 @@ function renderEnTete(i) {
   `;
 }
 
+// ─── Helpers cascade lieu ─────────────────────────────────────────────────────
+
+function renderCascadeOptionsLieu(batiment, lieuActuel = '') {
+  const cfg = LIEUX_PAR_BATIMENT[batiment];
+  if (!cfg) return '<option value="">— —</option>';
+  let html = '<option value="">— Service / Étage —</option>';
+  if (cfg.prioritaires) {
+    cfg.prioritaires.forEach(p => {
+      html += `<option value="${p.valeur}"${lieuActuel === p.valeur ? ' selected' : ''}>${escapeHtml(p.label)}</option>`;
+    });
+  }
+  if (cfg.etages) {
+    cfg.etages.forEach(e => {
+      html += `<option value="${e.valeur}"${lieuActuel === e.valeur ? ' selected' : ''}>${escapeHtml(e.label)}</option>`;
+    });
+  }
+  return html;
+}
+
+function renderCascadeEtageOpt(batiment, lieuVal, etageOptionActuel = '') {
+  if (!lieuVal || !lieuVal.startsWith('etage-')) return '';
+  const cfg = LIEUX_PAR_BATIMENT[batiment];
+  if (!cfg || !cfg.etageOptions) return '';
+  let html = '<select id="casc-etage-opt" class="casc-select"><option value="">— Type —</option>';
+  cfg.etageOptions.forEach(o => {
+    html += `<option value="${o.valeur}"${etageOptionActuel === o.valeur ? ' selected' : ''}>${escapeHtml(o.label)}</option>`;
+  });
+  html += '</select>';
+  return html;
+}
+
+function renderCascadeSuffixe(batiment, lieuVal, etageOption, suffixeActuel = '') {
+  if (!batiment || !lieuVal || lieuVal === '__libre__') return '';
+  const cfg = LIEUX_PAR_BATIMENT[batiment];
+  if (!cfg) return '';
+
+  // Prioritaire
+  if (cfg.prioritaires) {
+    const p = cfg.prioritaires.find(x => x.valeur === lieuVal);
+    if (p) {
+      if (p.type === 'fixe') return '';
+      if (p.type === 'lettre') {
+        const lettres = (p.lettres || '').split('');
+        return `<select id="casc-suffixe" class="casc-select">
+          <option value="">— Box —</option>
+          ${lettres.map(l => `<option value="${l}"${suffixeActuel === l ? ' selected' : ''}>${l}</option>`).join('')}
+        </select>`;
+      }
+      if (p.type === 'select') {
+        return `<select id="casc-suffixe" class="casc-select">
+          <option value="">—</option>
+          ${p.options.map(o => `<option value="${o}"${suffixeActuel === o ? ' selected' : ''}>${o}</option>`).join('')}
+        </select>`;
+      }
+      if (p.type === 'numero') {
+        return `<input type="text" id="casc-suffixe" class="casc-input-suffixe" inputmode="numeric" placeholder="N°" value="${escapeHtml(suffixeActuel)}" />`;
+      }
+    }
+  }
+
+  // Étage
+  if (lieuVal.startsWith('etage-') && etageOption) {
+    const optDef = (cfg.etageOptions || []).find(o => o.valeur === etageOption);
+    if (!optDef) return '';
+    if (optDef.type === 'numero') {
+      return `<input type="text" id="casc-suffixe" class="casc-input-suffixe" inputmode="numeric" placeholder="N°" value="${escapeHtml(suffixeActuel)}" />`;
+    }
+    if (optDef.type === 'select') {
+      return `<select id="casc-suffixe" class="casc-select">
+        <option value="">— Lit —</option>
+        ${optDef.options.map(o => `<option value="${o}"${suffixeActuel === o ? ' selected' : ''}>${o}</option>`).join('')}
+      </select>`;
+    }
+  }
+  return '';
+}
+
+// Met à jour i.lieu + i._lieuCascade et sauvegarde
+async function majLieuCascade(cascade) {
+  const lieu = composerLieu(cascade.batiment, cascade.lieuVal, cascade.etageOption, cascade.suffixe);
+  etat.intervention._lieuCascade = cascade;
+  etat.intervention.lieu = lieu;
+  await majIntervention(etat.intervention.id, { lieu, _lieuCascade: cascade });
+  // Mettre à jour le résultat affiché + bouton épingle sans rerender complet
+  const res = etat.container.querySelector('#cascade-lieu-resultat');
+  if (res) res.textContent = lieu || '—';
+  const pin = etat.container.querySelector('#btn-pin-lieu');
+  if (pin) pin.classList.toggle('pin-actif', estEpingle(lieu));
+}
+
 function statutRequiresName(statutId) {
   if (!statutId) return true;
   const st = STATUTS_REFERENCE.find(s => s.id === statutId);
@@ -239,40 +358,124 @@ function bindHoraires() {
 function bindEnTete() {
   const c = etat.container;
 
-  const inputLieu = c.querySelector('#champ-lieu');
-  inputLieu.addEventListener('blur', async () => {
-    const v = inputLieu.value.trim();
-    if (v !== etat.intervention.lieu) {
-      await majIntervention(etat.intervention.id, { lieu: v });
-      etat.intervention.lieu = v;
-      const btnPin = c.querySelector('[data-action="pin-lieu"]');
-      btnPin?.classList.toggle('pin-actif', estEpingle(v));
+  // ── Cascade lieu ──────────────────────────────────────────────────────────
+  function getCascade() {
+    return { ...(etat.intervention._lieuCascade || { batiment: '', lieuVal: '', etageOption: '', suffixe: '' }) };
+  }
+
+  // Bâtiment
+  c.querySelector('#casc-batiment')?.addEventListener('change', async (e) => {
+    const batiment = e.target.value;
+    const cascade  = { batiment, lieuVal: '', etageOption: '', suffixe: '' };
+    await majLieuCascade(cascade);
+    // Afficher/cacher les étapes suivantes
+    c.querySelector('#casc-row-lieu').style.display      = (batiment && batiment !== '__libre__') ? '' : 'none';
+    c.querySelector('#casc-row-etage-opt').style.display = 'none';
+    c.querySelector('#casc-row-suffixe').style.display   = 'none';
+    c.querySelector('#casc-row-libre').style.display     = (batiment === '__libre__') ? '' : 'none';
+    // Recharger les options lieu
+    const selLieu = c.querySelector('#casc-lieu');
+    if (selLieu) selLieu.innerHTML = renderCascadeOptionsLieu(batiment, '');
+  });
+
+  // Service / Étage
+  c.querySelector('#casc-lieu')?.addEventListener('change', async (e) => {
+    const cascade = { ...getCascade(), lieuVal: e.target.value, etageOption: '', suffixe: '' };
+    await majLieuCascade(cascade);
+    const batiment = cascade.batiment;
+    const lieuVal  = cascade.lieuVal;
+    // Étape option étage
+    const rowEtageOpt = c.querySelector('#casc-row-etage-opt');
+    const etageOptHtml = renderCascadeEtageOpt(batiment, lieuVal, '');
+    if (etageOptHtml) {
+      rowEtageOpt.innerHTML = etageOptHtml;
+      rowEtageOpt.style.display = '';
+      bindCascadeEtageOpt();
+    } else {
+      rowEtageOpt.style.display = 'none';
+    }
+    // Suffixe direct (unitées prioritaires non-fixe)
+    const suffixeHtml = renderCascadeSuffixe(batiment, lieuVal, '', '');
+    const rowSuffixe  = c.querySelector('#casc-row-suffixe');
+    if (suffixeHtml) {
+      rowSuffixe.innerHTML = suffixeHtml;
+      rowSuffixe.style.display = '';
+      bindCascadeSuffixe();
+    } else {
+      rowSuffixe.style.display = etageOptHtml ? 'none' : 'none';
     }
   });
 
-  c.querySelector('[data-action="pin-lieu"]').addEventListener('click', () => {
-    const v = inputLieu.value.trim();
+  function bindCascadeEtageOpt() {
+    c.querySelector('#casc-etage-opt')?.addEventListener('change', async (e) => {
+      const etageOption = e.target.value;
+      const cascade     = { ...getCascade(), etageOption, suffixe: '' };
+      await majLieuCascade(cascade);
+      const suffixeHtml = renderCascadeSuffixe(cascade.batiment, cascade.lieuVal, etageOption, '');
+      const rowSuffixe  = c.querySelector('#casc-row-suffixe');
+      if (suffixeHtml) {
+        rowSuffixe.innerHTML = suffixeHtml;
+        rowSuffixe.style.display = '';
+        bindCascadeSuffixe();
+      } else {
+        rowSuffixe.style.display = 'none';
+      }
+    });
+  }
+
+  function bindCascadeSuffixe() {
+    const el = c.querySelector('#casc-suffixe');
+    if (!el) return;
+    const evt = el.tagName === 'SELECT' ? 'change' : 'blur';
+    el.addEventListener(evt, async () => {
+      const cascade = { ...getCascade(), suffixe: el.value };
+      await majLieuCascade(cascade);
+    });
+  }
+
+  // Saisie libre
+  c.querySelector('#casc-libre')?.addEventListener('blur', async (e) => {
+    const v = e.target.value.trim();
+    etat.intervention.lieu = v;
+    await majIntervention(etat.intervention.id, { lieu: v });
+    const res = c.querySelector('#cascade-lieu-resultat');
+    if (res) res.textContent = v || '—';
+    const pin = c.querySelector('#btn-pin-lieu');
+    if (pin) pin.classList.toggle('pin-actif', estEpingle(v));
+  });
+
+  // Puces lieux épinglés — injectent la valeur brute dans casc-libre + bascule en __libre__
+  c.querySelectorAll('.puce-lieu').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const v = btn.dataset.lieu;
+      const cascade = { batiment: '__libre__', lieuVal: '', etageOption: '', suffixe: v };
+      await majIntervention(etat.intervention.id, { lieu: v, _lieuCascade: cascade });
+      etat.intervention.lieu = v;
+      etat.intervention._lieuCascade = cascade;
+      await renderInterventionEdit(c);
+    });
+  });
+
+  // Épingle
+  c.querySelector('#btn-pin-lieu')?.addEventListener('click', () => {
+    const v = etat.intervention.lieu || '';
     if (!v) return;
     togglePinLieu(v);
     renderInterventionEdit(c);
   });
 
-  c.querySelectorAll('.puce-lieu').forEach(btn => {
-    btn.addEventListener('click', () => {
-      inputLieu.value = btn.dataset.lieu;
-      inputLieu.focus();
-      inputLieu.setSelectionRange(inputLieu.value.length, inputLieu.value.length);
-      inputLieu.dispatchEvent(new Event('blur'));
-    });
-  });
+  // Initialisation des binds cascade au chargement si déjà pré-rempli
+  bindCascadeEtageOpt();
+  bindCascadeSuffixe();
 
+  // ── Statut / Nom ─────────────────────────────────────────────────────────
   c.querySelector('#champ-statut').addEventListener('change', async (e) => {
     const v = e.target.value || null;
     await majIntervention(etat.intervention.id, { referenceStatut: v });
     etat.intervention.referenceStatut = v;
-    const inputNom   = c.querySelector('#champ-nom');
+    const inputNom     = c.querySelector('#champ-nom');
     const requiresName = statutRequiresName(v);
-    inputNom.disabled = !requiresName;
+    inputNom.disabled  = !requiresName;
     inputNom.parentElement.classList.toggle('champ-disabled', !requiresName);
   });
 
@@ -283,19 +486,18 @@ function bindEnTete() {
     etat.intervention.referenceNom = v;
   });
 
+  // ── Catégorie / Type ──────────────────────────────────────────────────────
   c.querySelector('#champ-categorie').addEventListener('change', async (e) => {
     const v = e.target.value || null;
     await majIntervention(etat.intervention.id, { categorie: v, type: '' });
     etat.intervention.categorie = v;
     etat.intervention.type = '';
     rafraichirAideMemoire();
-    // Rerender pour afficher le bon select type et éventuellement le bloc feu
     await renderInterventionEdit(etat.container);
   });
 
-  // Select type contextuel (liste prédéfinie)
   c.querySelector('#champ-type-select')?.addEventListener('change', async (e) => {
-    const val = e.target.value;
+    const val      = e.target.value;
     const inputLibre = c.querySelector('#champ-type');
     if (val === '__libre__') {
       if (inputLibre) inputLibre.style.display = '';
@@ -305,21 +507,17 @@ function bindEnTete() {
       await majIntervention(etat.intervention.id, { type: val });
       etat.intervention.type = val;
       rafraichirAideMemoire();
-      // Entrée auto pour "Objet dangereux"
-      if (val === 'Objet dangereux') {
-        await insererEntreeObjetDangereux();
-      }
+      if (val === 'Objet dangereux') await insererEntreeObjetDangereux();
     }
   });
 
-  // Champ type (saisie libre ou valeur du select)
   c.querySelector('#champ-type')?.addEventListener('blur', async (e) => {
     await majIntervention(etat.intervention.id, { type: e.target.value.trim() });
     etat.intervention.type = e.target.value.trim();
     rafraichirAideMemoire();
   });
 
-  // Champs rapport feu
+  // ── Champs feu ────────────────────────────────────────────────────────────
   c.querySelectorAll('.champ-feu-input').forEach(input => {
     input.addEventListener('blur', async () => {
       const champId = input.dataset.champFeu;
