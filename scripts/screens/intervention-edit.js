@@ -122,49 +122,45 @@ function renderEnTete(i) {
         </div>
       ` : ''}
 
-      <!-- Cascade lieu -->
+      <!-- Cascade lieu : [Bât▼] / [Service/Étage▼] / [Suffixe] sur une ligne -->
       <div class="champ">
         <span class="champ-label">Lieu</span>
-        <div class="cascade-lieu-wrap">
+        <div class="casc-wrap">
+          <div class="casc-inline">
+            <!-- Col 1 : Bâtiment -->
+            <select id="casc-batiment" class="lieu-col1">
+              <option value="">Bât.</option>
+              ${BATIMENTS_LISTE.map(b => `<option value="${b}"${lieuCascade.batiment === b ? ' selected' : ''}>${b}</option>`).join('')}
+              <option value="__libre__"${lieuCascade.batiment === '__libre__' ? ' selected' : ''}>…</option>
+            </select>
+            <!-- Col 2 : Service/Étage -->
+            ${lieuCascade.batiment && lieuCascade.batiment !== '__libre__' ? `
+              <span class="lieu-sep">/</span>
+              <select id="casc-lieu" class="lieu-col2">
+                ${renderCascadeOptionsLieu(lieuCascade.batiment, lieuCascade.lieuVal)}
+              </select>
+            ` : ''}
+            <!-- Col 3 : suffixe (inline) -->
+            ${(() => { const c3 = renderCascadeCol3(lieuCascade.batiment, lieuCascade.lieuVal, lieuCascade.etageOption, lieuCascade.suffixe); return c3 ? `<span class="lieu-sep">/</span><span class="casc-col3-wrap">${c3}</span>` : ''; })()}
+            <!-- Saisie libre -->
+            ${lieuCascade.batiment === '__libre__' ? `
+              <span class="lieu-sep">/</span>
+              <input type="text" id="casc-libre" class="lieu-col3 lieu-col3-libre"
+                placeholder="ex: BU44/07/PLI" value="${escapeHtml(i.lieu || '')}"
+                list="datalist-lieux" autocomplete="off" spellcheck="false" />
+              <datalist id="datalist-lieux">
+                ${etat.suggestionsLieux.map(s => `<option value="${escapeHtml(s.lieu)}"></option>`).join('')}
+              </datalist>
+            ` : ''}
+          </div>
           <!-- Résultat composé + épingle -->
-          <div class="cascade-lieu-resultat-row">
-            <span class="cascade-lieu-resultat" id="cascade-lieu-resultat">${escapeHtml(i.lieu || '—')}</span>
+          <div class="casc-resultat-row">
+            <span class="casc-resultat" id="cascade-lieu-resultat">${escapeHtml(i.lieu || '')}</span>
             <button type="button"
               class="btn-pin ${estEpingle(i.lieu || '') ? 'pin-actif' : ''}"
               id="btn-pin-lieu"
               aria-label="Épingler ce lieu"
               title="Épingler ce lieu">★</button>
-          </div>
-          <!-- Étape 1 : Bâtiment -->
-          <div class="cascade-row">
-            <select id="casc-batiment" class="casc-select">
-              <option value="">— Bâtiment —</option>
-              ${BATIMENTS_LISTE.map(b => `<option value="${b}"${lieuCascade.batiment === b ? ' selected' : ''}>${b}</option>`).join('')}
-              <option value="__libre__"${lieuCascade.batiment === '__libre__' ? ' selected' : ''}>Autre (saisie libre)</option>
-            </select>
-          </div>
-          <!-- Étape 2 : Service/Étage — visible si bâtiment choisi -->
-          <div class="cascade-row" id="casc-row-lieu" style="${lieuCascade.batiment && lieuCascade.batiment !== '__libre__' ? '' : 'display:none'}">
-            <select id="casc-lieu" class="casc-select">
-              ${renderCascadeOptionsLieu(lieuCascade.batiment, lieuCascade.lieuVal)}
-            </select>
-          </div>
-          <!-- Étape 3 : Type (chambre / soins interm.) — visible si étage choisi et options disponibles -->
-          <div class="cascade-row" id="casc-row-etage-opt" style="${lieuCascade.lieuVal && lieuCascade.lieuVal.startsWith('etage-') ? '' : 'display:none'}">
-            ${renderCascadeEtageOpt(lieuCascade.batiment, lieuCascade.lieuVal, lieuCascade.etageOption)}
-          </div>
-          <!-- Étape 4 : Suffixe (lettre, select, numéro) -->
-          <div class="cascade-row" id="casc-row-suffixe" style="${renderCascadeSuffixe(lieuCascade.batiment, lieuCascade.lieuVal, lieuCascade.etageOption, lieuCascade.suffixe) ? '' : 'display:none'}">
-            ${renderCascadeSuffixe(lieuCascade.batiment, lieuCascade.lieuVal, lieuCascade.etageOption, lieuCascade.suffixe)}
-          </div>
-          <!-- Saisie libre si bâtiment = __libre__ -->
-          <div class="cascade-row" id="casc-row-libre" style="${lieuCascade.batiment === '__libre__' ? '' : 'display:none'}">
-            <input type="text" id="casc-libre" class="casc-input-libre"
-              placeholder="ex: BU44/07/PLI" value="${escapeHtml(lieuCascade.batiment === '__libre__' ? (i.lieu || '') : '')}"
-              list="datalist-lieux" autocomplete="off" spellcheck="false" />
-            <datalist id="datalist-lieux">
-              ${etat.suggestionsLieux.map(s => `<option value="${escapeHtml(s.lieu)}"></option>`).join('')}
-            </datalist>
           </div>
         </div>
       </div>
@@ -236,25 +232,15 @@ function renderCascadeOptionsLieu(batiment, lieuActuel = '') {
   }
   if (cfg.etages) {
     cfg.etages.forEach(e => {
-      html += `<option value="${e.valeur}"${lieuActuel === e.valeur ? ' selected' : ''}>${escapeHtml(e.label)}</option>`;
+      // Label court : numéro seul (pas "Étage 12")
+      html += `<option value="${e.valeur}"${lieuActuel === e.valeur ? ' selected' : ''}>${escapeHtml(e.numero)}</option>`;
     });
   }
   return html;
 }
 
-function renderCascadeEtageOpt(batiment, lieuVal, etageOptionActuel = '') {
-  if (!lieuVal || !lieuVal.startsWith('etage-')) return '';
-  const cfg = LIEUX_PAR_BATIMENT[batiment];
-  if (!cfg || !cfg.etageOptions) return '';
-  let html = '<select id="casc-etage-opt" class="casc-select"><option value="">— Type —</option>';
-  cfg.etageOptions.forEach(o => {
-    html += `<option value="${o.valeur}"${etageOptionActuel === o.valeur ? ' selected' : ''}>${escapeHtml(o.label)}</option>`;
-  });
-  html += '</select>';
-  return html;
-}
-
-function renderCascadeSuffixe(batiment, lieuVal, etageOption, suffixeActuel = '') {
+// Col 3 unifiée — retourne le HTML inline (peut être select, input, ou dual pour BH étage)
+function renderCascadeCol3(batiment, lieuVal, etageOption, suffixeActuel = '') {
   if (!batiment || !lieuVal || lieuVal === '__libre__') return '';
   const cfg = LIEUX_PAR_BATIMENT[batiment];
   if (!cfg) return '';
@@ -265,37 +251,41 @@ function renderCascadeSuffixe(batiment, lieuVal, etageOption, suffixeActuel = ''
     if (p) {
       if (p.type === 'fixe') return '';
       if (p.type === 'lettre') {
-        const lettres = (p.lettres || '').split('');
-        return `<select id="casc-suffixe" class="casc-select">
-          <option value="">— Box —</option>
-          ${lettres.map(l => `<option value="${l}"${suffixeActuel === l ? ' selected' : ''}>${l}</option>`).join('')}
-        </select>`;
+        const opts = (p.lettres || '').split('').map(l =>
+          `<option value="${l}"${suffixeActuel === l ? ' selected' : ''}>${l}</option>`).join('');
+        return `<select id="casc-suffixe" class="lieu-col3"><option value="">—</option>${opts}</select>`;
       }
       if (p.type === 'select') {
-        return `<select id="casc-suffixe" class="casc-select">
-          <option value="">—</option>
-          ${p.options.map(o => `<option value="${o}"${suffixeActuel === o ? ' selected' : ''}>${o}</option>`).join('')}
-        </select>`;
+        const opts = p.options.map(o =>
+          `<option value="${o}"${suffixeActuel === o ? ' selected' : ''}>${o}</option>`).join('');
+        return `<select id="casc-suffixe" class="lieu-col3"><option value="">—</option>${opts}</select>`;
       }
       if (p.type === 'numero') {
-        return `<input type="text" id="casc-suffixe" class="casc-input-suffixe" inputmode="numeric" placeholder="N°" value="${escapeHtml(suffixeActuel)}" />`;
+        return `<input type="text" id="casc-suffixe" class="lieu-col3 lieu-col3-num" inputmode="numeric" placeholder="N°" value="${escapeHtml(suffixeActuel)}" />`;
       }
     }
   }
 
-  // Étage
-  if (lieuVal.startsWith('etage-') && etageOption) {
-    const optDef = (cfg.etageOptions || []).find(o => o.valeur === etageOption);
-    if (!optDef) return '';
-    if (optDef.type === 'numero') {
-      return `<input type="text" id="casc-suffixe" class="casc-input-suffixe" inputmode="numeric" placeholder="N°" value="${escapeHtml(suffixeActuel)}" />`;
+  // Étage — BH : type select (Ch./S.int) + suffixe ; autres : input direct
+  if (lieuVal.startsWith('etage-') && cfg.etageOptions) {
+    if (cfg.etageOptions.length > 1) {
+      // BH : micro-select type + suffixe
+      const typeOpts = cfg.etageOptions.map(o =>
+        `<option value="${o.valeur}"${etageOption === o.valeur ? ' selected' : ''}>${o.valeur === 'chambre' ? 'Ch.' : 'S.int'}</option>`).join('');
+      const selectType = `<select id="casc-etage-opt" class="lieu-col3-type"><option value="">—</option>${typeOpts}</select>`;
+      if (!etageOption) return selectType;
+      const optDef = cfg.etageOptions.find(o => o.valeur === etageOption);
+      if (optDef && optDef.type === 'numero') {
+        return `${selectType}<input type="text" id="casc-suffixe" class="lieu-col3 lieu-col3-num" inputmode="numeric" placeholder="N°" value="${escapeHtml(suffixeActuel)}" />`;
+      }
+      if (optDef && optDef.type === 'select') {
+        const litOpts = optDef.options.map(o => `<option value="${o}"${suffixeActuel === o ? ' selected' : ''}>${o}</option>`).join('');
+        return `${selectType}<select id="casc-suffixe" class="lieu-col3"><option value="">—</option>${litOpts}</select>`;
+      }
+      return selectType;
     }
-    if (optDef.type === 'select') {
-      return `<select id="casc-suffixe" class="casc-select">
-        <option value="">— Lit —</option>
-        ${optDef.options.map(o => `<option value="${o}"${suffixeActuel === o ? ' selected' : ''}>${o}</option>`).join('')}
-      </select>`;
-    }
+    // Étage simple : input numérique direct
+    return `<input type="text" id="casc-suffixe" class="lieu-col3 lieu-col3-num" inputmode="numeric" placeholder="N°" value="${escapeHtml(suffixeActuel)}" />`;
   }
   return '';
 }
@@ -306,9 +296,8 @@ async function majLieuCascade(cascade) {
   etat.intervention._lieuCascade = cascade;
   etat.intervention.lieu = lieu;
   await majIntervention(etat.intervention.id, { lieu, _lieuCascade: cascade });
-  // Mettre à jour le résultat affiché + bouton épingle sans rerender complet
   const res = etat.container.querySelector('#cascade-lieu-resultat');
-  if (res) res.textContent = lieu || '—';
+  if (res) res.textContent = lieu || '';
   const pin = etat.container.querySelector('#btn-pin-lieu');
   if (pin) pin.classList.toggle('pin-actif', estEpingle(lieu));
 }
@@ -363,92 +352,81 @@ function bindEnTete() {
     return { ...(etat.intervention._lieuCascade || { batiment: '', lieuVal: '', etageOption: '', suffixe: '' }) };
   }
 
-  // Bâtiment
-  c.querySelector('#casc-batiment')?.addEventListener('change', async (e) => {
-    const batiment = e.target.value;
-    const cascade  = { batiment, lieuVal: '', etageOption: '', suffixe: '' };
-    await majLieuCascade(cascade);
-    // Afficher/cacher les étapes suivantes
-    c.querySelector('#casc-row-lieu').style.display      = (batiment && batiment !== '__libre__') ? '' : 'none';
-    c.querySelector('#casc-row-etage-opt').style.display = 'none';
-    c.querySelector('#casc-row-suffixe').style.display   = 'none';
-    c.querySelector('#casc-row-libre').style.display     = (batiment === '__libre__') ? '' : 'none';
-    // Recharger les options lieu
-    const selLieu = c.querySelector('#casc-lieu');
-    if (selLieu) selLieu.innerHTML = renderCascadeOptionsLieu(batiment, '');
-  });
+  // Re-render partiel de la zone casc-inline après chaque changement de colonne
+  function rerenderInline(cascade) {
+    const inline = c.querySelector('.casc-inline');
+    if (!inline) return;
+    inline.innerHTML = `
+      <select id="casc-batiment" class="lieu-col1">
+        <option value="">Bât.</option>
+        ${BATIMENTS_LISTE.map(b => `<option value="${b}"${cascade.batiment === b ? ' selected' : ''}>${b}</option>`).join('')}
+        <option value="__libre__"${cascade.batiment === '__libre__' ? ' selected' : ''}>…</option>
+      </select>
+      ${cascade.batiment && cascade.batiment !== '__libre__' ? `
+        <span class="lieu-sep">/</span>
+        <select id="casc-lieu" class="lieu-col2">
+          ${renderCascadeOptionsLieu(cascade.batiment, cascade.lieuVal)}
+        </select>
+      ` : ''}
+      ${(() => { const c3 = renderCascadeCol3(cascade.batiment, cascade.lieuVal, cascade.etageOption, cascade.suffixe); return c3 ? `<span class="lieu-sep">/</span><span class="casc-col3-wrap">${c3}</span>` : ''; })()}
+      ${cascade.batiment === '__libre__' ? `
+        <span class="lieu-sep">/</span>
+        <input type="text" id="casc-libre" class="lieu-col3 lieu-col3-libre"
+          placeholder="ex: BU44/07/PLI" value="${escapeHtml(etat.intervention.lieu || '')}"
+          list="datalist-lieux" autocomplete="off" spellcheck="false" />
+      ` : ''}
+    `;
+    bindCascadeListeners();
+  }
 
-  // Service / Étage
-  c.querySelector('#casc-lieu')?.addEventListener('change', async (e) => {
-    const cascade = { ...getCascade(), lieuVal: e.target.value, etageOption: '', suffixe: '' };
-    await majLieuCascade(cascade);
-    const batiment = cascade.batiment;
-    const lieuVal  = cascade.lieuVal;
-    // Étape option étage
-    const rowEtageOpt = c.querySelector('#casc-row-etage-opt');
-    const etageOptHtml = renderCascadeEtageOpt(batiment, lieuVal, '');
-    if (etageOptHtml) {
-      rowEtageOpt.innerHTML = etageOptHtml;
-      rowEtageOpt.style.display = '';
-      bindCascadeEtageOpt();
-    } else {
-      rowEtageOpt.style.display = 'none';
-    }
-    // Suffixe direct (unitées prioritaires non-fixe)
-    const suffixeHtml = renderCascadeSuffixe(batiment, lieuVal, '', '');
-    const rowSuffixe  = c.querySelector('#casc-row-suffixe');
-    if (suffixeHtml) {
-      rowSuffixe.innerHTML = suffixeHtml;
-      rowSuffixe.style.display = '';
-      bindCascadeSuffixe();
-    } else {
-      rowSuffixe.style.display = etageOptHtml ? 'none' : 'none';
-    }
-  });
-
-  function bindCascadeEtageOpt() {
+  function bindCascadeListeners() {
+    // Bâtiment
+    c.querySelector('#casc-batiment')?.addEventListener('change', async (e) => {
+      const cascade = { batiment: e.target.value, lieuVal: '', etageOption: '', suffixe: '' };
+      await majLieuCascade(cascade);
+      rerenderInline(cascade);
+    });
+    // Service/Étage
+    c.querySelector('#casc-lieu')?.addEventListener('change', async (e) => {
+      const cascade = { ...getCascade(), lieuVal: e.target.value, etageOption: '', suffixe: '' };
+      await majLieuCascade(cascade);
+      rerenderInline(cascade);
+    });
+    // Type étage BH (Ch. / S.int)
     c.querySelector('#casc-etage-opt')?.addEventListener('change', async (e) => {
-      const etageOption = e.target.value;
-      const cascade     = { ...getCascade(), etageOption, suffixe: '' };
+      const cascade = { ...getCascade(), etageOption: e.target.value, suffixe: '' };
       await majLieuCascade(cascade);
-      const suffixeHtml = renderCascadeSuffixe(cascade.batiment, cascade.lieuVal, etageOption, '');
-      const rowSuffixe  = c.querySelector('#casc-row-suffixe');
-      if (suffixeHtml) {
-        rowSuffixe.innerHTML = suffixeHtml;
-        rowSuffixe.style.display = '';
-        bindCascadeSuffixe();
-      } else {
-        rowSuffixe.style.display = 'none';
-      }
+      rerenderInline(cascade);
+    });
+    // Suffixe (select lettre/I1-I4/lit ou input numérique)
+    const suffixeEl = c.querySelector('#casc-suffixe');
+    if (suffixeEl) {
+      const evt = suffixeEl.tagName === 'SELECT' ? 'change' : 'blur';
+      suffixeEl.addEventListener(evt, async () => {
+        const cascade = { ...getCascade(), suffixe: suffixeEl.value };
+        await majLieuCascade(cascade);
+      });
+    }
+    // Saisie libre
+    c.querySelector('#casc-libre')?.addEventListener('blur', async (e) => {
+      const v = e.target.value.trim();
+      etat.intervention.lieu = v;
+      await majIntervention(etat.intervention.id, { lieu: v });
+      const res = c.querySelector('#cascade-lieu-resultat');
+      if (res) res.textContent = v || '';
+      const pin = c.querySelector('#btn-pin-lieu');
+      if (pin) pin.classList.toggle('pin-actif', estEpingle(v));
     });
   }
 
-  function bindCascadeSuffixe() {
-    const el = c.querySelector('#casc-suffixe');
-    if (!el) return;
-    const evt = el.tagName === 'SELECT' ? 'change' : 'blur';
-    el.addEventListener(evt, async () => {
-      const cascade = { ...getCascade(), suffixe: el.value };
-      await majLieuCascade(cascade);
-    });
-  }
+  // Initialiser les listeners au chargement
+  bindCascadeListeners();
 
-  // Saisie libre
-  c.querySelector('#casc-libre')?.addEventListener('blur', async (e) => {
-    const v = e.target.value.trim();
-    etat.intervention.lieu = v;
-    await majIntervention(etat.intervention.id, { lieu: v });
-    const res = c.querySelector('#cascade-lieu-resultat');
-    if (res) res.textContent = v || '—';
-    const pin = c.querySelector('#btn-pin-lieu');
-    if (pin) pin.classList.toggle('pin-actif', estEpingle(v));
-  });
-
-  // Puces lieux épinglés — injectent la valeur brute dans casc-libre + bascule en __libre__
+  // Puces lieux épinglés
   c.querySelectorAll('.puce-lieu').forEach(btn => {
     btn.addEventListener('click', async () => {
       const v = btn.dataset.lieu;
-      const cascade = { batiment: '__libre__', lieuVal: '', etageOption: '', suffixe: v };
+      const cascade = { batiment: '__libre__', lieuVal: '', etageOption: '', suffixe: '' };
       await majIntervention(etat.intervention.id, { lieu: v, _lieuCascade: cascade });
       etat.intervention.lieu = v;
       etat.intervention._lieuCascade = cascade;
@@ -463,10 +441,6 @@ function bindEnTete() {
     togglePinLieu(v);
     renderInterventionEdit(c);
   });
-
-  // Initialisation des binds cascade au chargement si déjà pré-rempli
-  bindCascadeEtageOpt();
-  bindCascadeSuffixe();
 
   // ── Statut / Nom ─────────────────────────────────────────────────────────
   c.querySelector('#champ-statut').addEventListener('change', async (e) => {
