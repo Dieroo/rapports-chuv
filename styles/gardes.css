@@ -117,32 +117,91 @@
   border-color: var(--rouge);
 }
 
-.garde-lieu-wrap {
+/* ─── Lieu — 3 champs inline ─────────────────────────────────────────────── */
+
+.garde-lieu-cell {
+  min-width: 10rem;
+}
+
+/* Résultat composé affiché en petit au-dessus des selects */
+.lieu-compose {
+  font-family: var(--font-mono, monospace);
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--rouge, #E2001A);
+  letter-spacing: .02em;
+  margin-bottom: 3px;
+  white-space: nowrap;
+}
+
+/* Ligne des 3 champs */
+.lieu-inline {
   display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
-  min-width: 9rem;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: nowrap;
 }
 
-.garde-lieu-suffixe {
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  padding: var(--sp-1);
-  background: transparent;
-  color: var(--texte);
-  font-size: .82rem;
+.lieu-sep {
+  color: var(--texte-dim, #888);
+  font-size: .8rem;
+  flex-shrink: 0;
+  padding: 0 1px;
 }
-.garde-lieu-suffixe:focus { outline: none; border-color: var(--rouge); }
 
-.garde-lieu-libre {
-  border: 1px dashed var(--bordure);
-  border-radius: var(--radius-sm);
-  padding: var(--sp-1) var(--sp-2);
+/* Col 2 — étage/service */
+.lieu-col2 {
+  width: 72px;
+  min-width: 0;
+  padding: 2px 4px;
+  height: 30px;
+  font-size: .80rem;
   background: var(--fond);
   color: var(--texte);
-  font-size: .82rem;
-  width: 100%;
-  box-sizing: border-box;
+  border: 1px solid var(--bordure, var(--bord));
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+/* Col 3 type (Ch./S.int pour BH) */
+.lieu-col3-type {
+  width: 52px;
+  min-width: 0;
+  padding: 2px 2px;
+  height: 30px;
+  font-size: .78rem;
+  background: var(--fond);
+  color: var(--texte);
+  border: 1px solid var(--bordure, var(--bord));
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+/* Col 3 suffixe (select lettre ou input N°) */
+.lieu-col3 {
+  width: 54px;
+  min-width: 0;
+  padding: 2px 4px;
+  height: 30px;
+  font-size: .80rem;
+  background: var(--fond);
+  color: var(--texte);
+  border: 1px solid var(--bordure, var(--bord));
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+.lieu-col3-num { width: 48px; font-family: var(--font-mono, monospace); }
+.lieu-col3-libre { width: 80px; font-family: var(--font-mono, monospace); }
+
+.lieu-col3-wrap {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.lieu-col2:focus, .lieu-col3:focus, .lieu-col3-type:focus {
+  outline: none;
+  border-color: var(--rouge, #E2001A);
 }
 
 .garde-batiment-libre {
