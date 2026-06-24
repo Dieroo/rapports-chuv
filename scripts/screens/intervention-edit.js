@@ -166,10 +166,10 @@ function renderEnTete(i) {
               `).join('')}
             </select>
           </label>
-          <label class="champ">
+          <div id="champ-type-wrap" class="champ">
             <span class="champ-label">Type</span>
             ${renderSelectType(i.categorie, i.type)}
-          </label>
+          </div>
         </div>
         ${!estEngagementCDS(etat.entrees) ? `
         <label class="champ">
@@ -482,29 +482,45 @@ function bindEnTete() {
     etat.intervention.categorie = v;
     etat.intervention.type = '';
     rafraichirAideMemoire();
-    await renderInterventionEdit(etat.container);
-  });
-
-  c.querySelector('#champ-type-select')?.addEventListener('change', async (e) => {
-    const val      = e.target.value;
-    const inputLibre = c.querySelector('#champ-type');
-    if (val === '__libre__') {
-      if (inputLibre) inputLibre.style.display = '';
-      inputLibre?.focus();
-    } else {
-      if (inputLibre) { inputLibre.style.display = 'none'; inputLibre.value = val; }
-      await majIntervention(etat.intervention.id, { type: val });
-      etat.intervention.type = val;
-      rafraichirAideMemoire();
-      if (val === 'Objet dangereux') await insererEntreeObjetDangereux();
+    // Re-render partiel du seul select type — conserve le <details> ouvert
+    const wrap = c.querySelector('#champ-type-wrap');
+    if (wrap) {
+      wrap.innerHTML = '<span class="champ-label">Type</span>' + renderSelectType(v, '');
+      // Rebinder les listeners du type
+      bindListenersType();
+    }
+    // Si catégorie change → le bloc feu peut apparaître/disparaître : rerender complet seulement si nécessaire
+    const estFeu = v === 'Feu / inondation / sinistre';
+    const blocFeuActuel = !!c.querySelector('.bloc-rapport-feu');
+    if (estFeu !== blocFeuActuel) {
+      await renderInterventionEdit(etat.container);
     }
   });
 
-  c.querySelector('#champ-type')?.addEventListener('blur', async (e) => {
-    await majIntervention(etat.intervention.id, { type: e.target.value.trim() });
-    etat.intervention.type = e.target.value.trim();
-    rafraichirAideMemoire();
-  });
+  function bindListenersType() {
+    c.querySelector('#champ-type-select')?.addEventListener('change', async (e) => {
+      const val        = e.target.value;
+      const inputLibre = c.querySelector('#champ-type');
+      if (val === '__libre__') {
+        if (inputLibre) inputLibre.style.display = '';
+        inputLibre?.focus();
+      } else {
+        if (inputLibre) { inputLibre.style.display = 'none'; inputLibre.value = val; }
+        await majIntervention(etat.intervention.id, { type: val });
+        etat.intervention.type = val;
+        rafraichirAideMemoire();
+        if (val === 'Objet dangereux') await insererEntreeObjetDangereux();
+      }
+    });
+    c.querySelector('#champ-type')?.addEventListener('blur', async (e) => {
+      await majIntervention(etat.intervention.id, { type: e.target.value.trim() });
+      etat.intervention.type = e.target.value.trim();
+      rafraichirAideMemoire();
+    });
+  }
+
+  // Initialiser les listeners type au chargement
+  bindListenersType();
 
   // ── Champs feu ────────────────────────────────────────────────────────────
   c.querySelectorAll('.champ-feu-input').forEach(input => {
@@ -657,7 +673,7 @@ async function declencherTemplate(nom, posteMoi) {
   switch (nom) {
     case 'engagement':       return ouvrirDialogEngagement(posteMoi);
     case 'surPlace':         return ouvrirDialogSurPlace(posteMoi);
-    case 'risques':          return inserer(phraseRisques({ risques: etat.intervention.risques, physiqueForte: etat.intervention.physiqueForteAutorisee }), 'risques');
+    case 'risques':          return ajouterRisquesAuSurPlace();
     case 'transmissionCDS':  return inserer(phraseTransmissionCDS({ posteMoi }), 'transmissionCDS');
     case 'transfert':        return ouvrirDialogTransfert();
     case 'noteLibre':        return ouvrirDialogNoteLibre();
@@ -689,7 +705,81 @@ function extraireDernierContactSurPlace() {
   return reste;
 }
 
-// Insère automatiquement l'entrée pré-remplie pour "Saisie / Confiscation — Objet dangereux"
+// Construit la phrase de risques à appender : "qui m'informe que le patient présente les risques : …"
+function phraseRisquesAppend() {
+  const risques        = etat.intervention.risques || [];
+  const physiqueForte  = etat.intervention.physiqueForteAutorisee;
+  const statutId       = etat.intervention.referenceStatut;
+
+  // Label du sujet selon le statut
+  const labelsStatut = {
+    'pat':         'le patient',
+    'det':         'le détenu',
+    'prev':        'le prévenu',
+    'body-packer': 'le patient (body packer)',
+    'visiteur':    'le visiteur',
+    'garde-tech':  'la personne',
+    'chef-interv': 'la personne',
+    'emp':         'la personne',
+    'inconnu':     'l\'individu',
+    'inconnue':    'l\'individu',
+  };
+  const sujet = labelsStatut[statutId] || 'le patient';
+
+  // Labels risques
+  const labelsRisques = { auto: 'auto-agressif', hetero: 'hétéro-agressif', fugue: 'fugue' };
+
+  if (!risques.length && !physiqueForte) {
+    return `qui m'informe qu'aucun risque particulier n'est signalé.`;
+  }
+
+  const listeRisques = risques.map(r => labelsRisques[r]).filter(Boolean);
+  let phrase = `qui m'informe que ${sujet} présente`;
+
+  if (listeRisques.length === 1) {
+    phrase += ` un risque ${listeRisques[0]}`;
+  } else if (listeRisques.length > 1) {
+    const dernierRisque = listeRisques.pop();
+    phrase += ` des risques ${listeRisques.join(', ')} et ${dernierRisque}`;
+  }
+
+  if (physiqueForte) {
+    phrase += listeRisques.length ? '. Physique forte autorisée' : 'un risque. Physique forte autorisée';
+  }
+
+  return phrase + '.';
+}
+
+// Appende les risques à la dernière entrée "Sur place", ou crée une entrée séparée si absente
+async function ajouterRisquesAuSurPlace() {
+  const dernierSurPlace = [...etat.entrees].reverse().find(e => e.template === 'surPlace');
+
+  if (!dernierSurPlace) {
+    // Pas de surPlace → comportement de secours : entrée risques séparée
+    const texteRisques = phraseRisques({ risques: etat.intervention.risques, physiqueForte: etat.intervention.physiqueForteAutorisee });
+    return inserer(texteRisques || 'Aucun risque particulier signalé.', 'risques');
+  }
+
+  // Retirer le point final du surPlace s'il y en a un, puis appender
+  const texteActuel  = dernierSurPlace.texte.trimEnd().replace(/\.$/, '');
+  const append       = phraseRisquesAppend();
+  const nouveauTexte = `${texteActuel} ${append}`;
+
+  // Mutation silencieuse : pas de rerender complet, juste màj base + textarea visible
+  await majEntree(dernierSurPlace.id, { texte: nouveauTexte });
+  dernierSurPlace.texte = nouveauTexte;
+
+  // Mettre à jour le textarea visible sans rerender toute la page
+  const ta = etat.container.querySelector(`.entree-texte[data-id="${dernierSurPlace.id}"]`);
+  if (ta) {
+    ta.value = nouveauTexte;
+    ta.style.height = 'auto';
+    ta.style.height = ta.scrollHeight + 'px';
+  } else {
+    // Fallback si le textarea n'est pas visible
+    await renderInterventionEdit(etat.container);
+  }
+}
 async function insererEntreeObjetDangereux() {
   const demandeur = extraireDernierContactSurPlace();
   const dateSaisie = formatHeureInput(etat.intervention.debut);
