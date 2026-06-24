@@ -25,6 +25,25 @@ export function formatHeureInput(date) {
   return `${h}:${m}`;
 }
 
+// JJ/MM — affichage compact de la date dans le fil chronologique
+export function formatDateEntree(date) {
+  if (!date) return '';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const j = String(d.getDate()).padStart(2, '0');
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  return `${j}/${mo}`;
+}
+
+// YYYY-MM-DD pour input type="date"
+export function formatDateInput(date) {
+  if (!date) return '';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const y  = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const j  = String(d.getDate()).padStart(2, '0');
+  return `${y}-${mo}-${j}`;
+}
+
 // Durée entre 2 dates en "1h10", "45 min", "1 j 02h" (au-delà de 24h)
 export function formatDuree(debut, fin) {
   if (!debut || !fin) return '';
