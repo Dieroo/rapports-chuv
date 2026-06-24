@@ -675,13 +675,34 @@
 }
 .entree-tete {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: var(--sp-2);
   margin-bottom: var(--sp-2);
 }
+
+/* Bloc gauche : label JJ/MM + inputs date + heure */
+.entree-datetime {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.entree-date-label {
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  color: var(--texte-dim);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+.entree-inputs-dt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.entree-date,
 .entree-heure {
-  width: 90px;
+  width: 130px;
   padding: var(--sp-1) var(--sp-2);
   min-height: 32px;
   font-family: var(--font-mono);
@@ -690,6 +711,12 @@
   color: var(--texte);
   border: 1px solid var(--bord);
   border-radius: var(--radius-sm);
+}
+.entree-date {
+  width: 130px;
+}
+.entree-heure {
+  width: 90px;
 }
 .entree-actions {
   display: flex;
