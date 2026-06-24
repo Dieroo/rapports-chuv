@@ -155,7 +155,7 @@ function renderEnTete(i) {
       </div>
 
       <details class="bloc-options">
-        <summary>Catégorie / Type / Description (optionnel)</summary>
+        <summary id="bloc-options-summary">${resumeSummary(i.categorie, i.type)}</summary>
         <div class="champ-paire">
           <label class="champ">
             <span class="champ-label">Catégorie</span>
@@ -482,11 +482,11 @@ function bindEnTete() {
     etat.intervention.categorie = v;
     etat.intervention.type = '';
     rafraichirAideMemoire();
+    rafraichirSummary();
     // Re-render partiel du seul select type — conserve le <details> ouvert
     const wrap = c.querySelector('#champ-type-wrap');
     if (wrap) {
       wrap.innerHTML = '<span class="champ-label">Type</span>' + renderSelectType(v, '');
-      // Rebinder les listeners du type
       bindListenersType();
     }
     // Si catégorie change → le bloc feu peut apparaître/disparaître : rerender complet seulement si nécessaire
@@ -509,6 +509,7 @@ function bindEnTete() {
         await majIntervention(etat.intervention.id, { type: val });
         etat.intervention.type = val;
         rafraichirAideMemoire();
+        rafraichirSummary();
         if (val === 'Objet dangereux') await insererEntreeObjetDangereux();
       }
     });
@@ -516,6 +517,7 @@ function bindEnTete() {
       await majIntervention(etat.intervention.id, { type: e.target.value.trim() });
       etat.intervention.type = e.target.value.trim();
       rafraichirAideMemoire();
+      rafraichirSummary();
     });
   }
 
@@ -537,6 +539,18 @@ function bindEnTete() {
     await majIntervention(etat.intervention.id, { description: e.target.value.trim() });
     etat.intervention.description = e.target.value.trim();
   });
+}
+
+// Texte du <summary> du bloc catégorie/type : résumé si rempli, libellé par défaut sinon
+function resumeSummary(categorie, type) {
+  if (!categorie && !type) return 'Catégorie / Type / Description (optionnel)';
+  const parties = [categorie, type].filter(x => x && x.trim());
+  return parties.join(' — ');
+}
+
+function rafraichirSummary() {
+  const el = etat.container.querySelector('#bloc-options-summary');
+  if (el) el.textContent = resumeSummary(etat.intervention.categorie, etat.intervention.type);
 }
 
 function rafraichirAideMemoire() {
