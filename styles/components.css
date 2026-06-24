@@ -164,12 +164,55 @@
   .champ-paire { grid-template-columns: 1fr; }
 }
 
-.champ-lieu-row {
+/* ─── Cascade lieu (intervention-edit) ──────────────────────────────────── */
+.cascade-lieu-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.cascade-lieu-resultat-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.cascade-lieu-resultat {
+  font-family: var(--font-mono);
+  font-size: var(--fs-base);
+  font-weight: 700;
+  color: var(--accent);
+  flex: 1;
+  min-height: 1.6rem;
+  letter-spacing: 0.02em;
+}
+.cascade-row {
   display: flex;
   gap: var(--sp-2);
-  align-items: stretch;
+  flex-wrap: wrap;
 }
-.champ-lieu-row input { flex: 1; }
+.casc-select {
+  flex: 1;
+  min-width: 0;
+  padding: var(--sp-1) var(--sp-2);
+  min-height: 36px;
+  background: var(--fond);
+  color: var(--texte);
+  border: 1px solid var(--bord);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-small);
+}
+.casc-input-libre,
+.casc-input-suffixe {
+  flex: 1;
+  min-width: 0;
+  padding: var(--sp-1) var(--sp-2);
+  min-height: 36px;
+  background: var(--fond);
+  color: var(--texte);
+  border: 1px solid var(--bord);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-small);
+  font-family: var(--font-mono);
+}
 
 .btn-pin {
   background: var(--fond-card);
