@@ -244,6 +244,45 @@
 }
 .lieu-col3-num   { width: 52px; font-family: var(--font-mono); }
 .lieu-col3-libre { width: 120px; font-family: var(--font-mono); }
+/* Chip lieu (mode résultat final) */
+.casc-chip-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.lieu-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 5px var(--sp-3);
+  background: var(--fond-card);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: var(--fs-base);
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.03em;
+}
+.lieu-chip-reset {
+  background: none;
+  border: none;
+  color: var(--texte-hint);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+  flex-shrink: 0;
+}
+.lieu-chip-reset:hover { color: var(--accent); }
+
+/* Résultat intermédiaire (pendant sélection) */
+.casc-resultat-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: 4px;
+}
 /* Séparateur / */
 .lieu-sep {
   color: var(--texte-hint);
