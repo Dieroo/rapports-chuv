@@ -17,7 +17,8 @@ import {
 import { setEcran, setInterventionCourante, s } from '../state.js';
 import { getSuggestionsLieux, togglePinLieu, estEpingle } from '../lieux-store.js';
 import {
-  escapeHtml, formatHeure, formatHeureInput, formatDuree, copierDansPressePapier,
+  escapeHtml, formatHeure, formatHeureInput, formatDateEntree, formatDateInput,
+  formatDuree, copierDansPressePapier,
   confirmer, demander, formatNom
 } from '../ui.js';
 import { exporterIntervention } from '../export-claude.js';
@@ -881,7 +882,13 @@ function renderFilChrono(entrees) {
         ${entrees.map(e => `
           <li class="entree" data-id="${e.id}">
             <div class="entree-tete">
-              <input type="time" class="entree-heure" value="${escapeHtml(formatHeureInput(e.heure))}" data-id="${e.id}" />
+              <div class="entree-datetime">
+                <span class="entree-date-label">${escapeHtml(formatDateEntree(e.heure))}</span>
+                <div class="entree-inputs-dt">
+                  <input type="date" class="entree-date" value="${escapeHtml(formatDateInput(e.heure))}" data-id="${e.id}" aria-label="Date de l'entrée" />
+                  <input type="time" class="entree-heure" value="${escapeHtml(formatHeureInput(e.heure))}" data-id="${e.id}" aria-label="Heure de l'entrée" />
+                </div>
+              </div>
               <div class="entree-actions">
                 <button type="button" class="btn-mini" data-copy-id="${e.id}">📋</button>
                 <button type="button" class="btn-mini btn-danger" data-del-id="${e.id}" aria-label="Supprimer">×</button>
@@ -898,6 +905,26 @@ function renderFilChrono(entrees) {
 function bindFilChrono() {
   const c = etat.container;
 
+  // Modification de la DATE d'une entrée
+  c.querySelectorAll('.entree-date').forEach(input => {
+    input.addEventListener('change', async () => {
+      const id     = parseInt(input.dataset.id, 10);
+      const entree = etat.entrees.find(e => e.id === id);
+      if (!entree) return;
+      const parts = input.value.split('-').map(Number); // [YYYY, MM, DD]
+      if (parts.length !== 3 || parts.some(Number.isNaN)) return;
+      const d = new Date(entree.heure);
+      d.setFullYear(parts[0], parts[1] - 1, parts[2]);
+      await majEntree(id, { heure: d });
+      entree.heure = d;
+      // Mettre à jour le label JJ/MM affiché sans rerender toute la page
+      const li    = input.closest('.entree');
+      const label = li?.querySelector('.entree-date-label');
+      if (label) label.textContent = formatDateEntree(d);
+    });
+  });
+
+  // Modification de l'HEURE d'une entrée
   c.querySelectorAll('.entree-heure').forEach(input => {
     input.addEventListener('change', async () => {
       const id   = parseInt(input.dataset.id, 10);
