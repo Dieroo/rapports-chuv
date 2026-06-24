@@ -316,6 +316,31 @@ export const LIEUX_PAR_BATIMENT = {
   },
 };
 
+// Retourne true quand la sélection est complète (→ on peut afficher le chip)
+export function lieuEstComplet(batiment, lieuVal, etageOption, suffixe) {
+  if (!batiment || !lieuVal) return false;
+  if (batiment === '__libre__') return !!(suffixe && suffixe.trim());
+  const cfg = LIEUX_PAR_BATIMENT[batiment];
+  if (!cfg) return !!(suffixe && suffixe.trim());
+  // Prioritaire fixe : complet dès la col2
+  if (cfg.prioritaires) {
+    const p = cfg.prioritaires.find(x => x.valeur === lieuVal);
+    if (p) {
+      if (p.type === 'fixe') return true;
+      return !!(suffixe && suffixe.trim()); // lettre, select, numero
+    }
+  }
+  // Étage : faut au moins un suffixe (chambre ou lit)
+  if (lieuVal.startsWith('etage-')) {
+    if (cfg.etageOptions && cfg.etageOptions.length > 1) {
+      // BH : faut etageOption + suffixe
+      return !!(etageOption && suffixe && suffixe.trim());
+    }
+    return !!(suffixe && suffixe.trim());
+  }
+  return false;
+}
+
 // Calcule la chaîne lieu finale (ex: "BH/05/URGO-I2", "BH/11/Soins interm./3")
 export function composerLieu(batiment, lieuVal, etageOption, suffixe) {
   if (!batiment) return '';
