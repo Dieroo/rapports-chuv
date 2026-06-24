@@ -209,6 +209,48 @@
   width: 5rem;
 }
 
+/* ─── Chip lieu (mode résultat final) ───────────────────────────────────── */
+.lieu-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 4px var(--sp-3);
+  background: var(--fond);
+  border: 2px solid var(--rouge, #E2001A);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono, monospace);
+  font-size: .82rem;
+  font-weight: 700;
+  color: var(--rouge, #E2001A);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.lieu-chip-reset {
+  background: none;
+  border: none;
+  color: var(--texte-dim, #888);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+.lieu-chip-reset:hover { color: var(--rouge, #E2001A); }
+
+/* Saisie libre texte */
+.lieu-libre-input {
+  width: 100%;
+  margin-top: 3px;
+  padding: 3px var(--sp-2);
+  height: 30px;
+  font-size: .80rem;
+  font-family: var(--font-mono, monospace);
+  background: var(--fond);
+  color: var(--texte);
+  border: 1px dashed var(--bordure, #ccc);
+  border-radius: var(--radius-sm);
+  box-sizing: border-box;
+}
+
 /* Icônes d'action — ligne dédiée sous les données, disposition horizontale */
 .garde-icones-row td {
   padding: 0 var(--sp-2) var(--sp-1);
