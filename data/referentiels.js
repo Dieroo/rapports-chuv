@@ -12,11 +12,11 @@ export const STATUTS_REFERENCE = [
   { id: 'pat',            label: 'Patient',            prefixe: 'Pat.',          requiresName: true  },
   { id: 'det',            label: 'Détenu',             prefixe: 'Dét.',          requiresName: true  },
   { id: 'prev',           label: 'Prévenu',            prefixe: 'Prév.',         requiresName: true  },
+  { id: 'body-packer',    label: 'Body packer',        prefixe: 'Body pack.',    requiresName: true  },
   { id: 'visiteur',       label: 'Visiteur',           prefixe: 'Visiteur',      requiresName: true  },
   { id: 'garde-tech',     label: 'Garde technique',    prefixe: 'Garde tech.',   requiresName: true  },
   { id: 'chef-interv',    label: 'Chef d\'intervention', prefixe: 'Chef interv.', requiresName: true },
   { id: 'emp',            label: 'Employé CHUV',       prefixe: 'Emp.',          requiresName: true  },
-  { id: 'body-packer',    label: 'Body packer',        prefixe: 'Body pack.',    requiresName: true  },
   { id: 'inconnu',        label: 'Inconnu (homme)',    literal: 'Inconnu',       requiresName: false },
   { id: 'inconnue',       label: 'Inconnue (femme)',   literal: 'Inconnue',      requiresName: false }
 ];
