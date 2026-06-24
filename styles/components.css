@@ -169,12 +169,21 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
+  width: fit-content;   /* ne s'étire pas à 100% */
+  max-width: 100%;      /* ne dépasse pas le conteneur */
 }
 .casc-inline {
   display: flex;
   align-items: center;
   gap: 3px;
   flex-wrap: nowrap;
+  width: fit-content;
+}
+/* Annuler le width:100% hérité de .champ select sur les selects de la cascade */
+.casc-wrap select,
+.casc-inline select,
+#bloc-lieu-wrap select {
+  width: auto !important;
 }
 .casc-col3-wrap {
   display: flex;
