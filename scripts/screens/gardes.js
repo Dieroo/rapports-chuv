@@ -1,60 +1,28 @@
-// Tableau des gardes en cours — Slice 4 CHUV
-// Gère la saisie, persistance et affichage des gardes actives pendant un service.
+// Tableau des gardes en cours — Slice 5
+// Logique lieux centralisée dans referentiels.js
 
 import { majService } from '../db.js';
 import { escapeHtml } from '../ui.js';
+import {
+  BATIMENTS_LISTE, STATUTS_GARDE, LIEUX_PAR_BATIMENT, composerLieu
+} from '../../data/referentiels.js';
 
-// ─── Référentiels lieux par bâtiment ────────────────────────────────────────
+// ─── Options natel SP1–SP20 ──────────────────────────────────────────────────
 
-const LIEUX_PAR_BATIMENT = {
-  BH: {
-    prioritaires: [
-      { valeur: 'URGC', type: 'lettre', lettres: 'ABCDEFGHIJKLM', label: 'URGC –' },
-      { valeur: 'URGA', type: 'lettre', lettres: 'NOPQRSTUVWXYZ', label: 'URGA –' },
-      { valeur: 'URGO-I', type: 'select', options: ['I1', 'I2', 'I3', 'I4'], label: 'URGO –' },
-      { valeur: 'URGO-LIT', type: 'lettre', lettres: 'ABCDEFGH', label: 'URGO – Lit' },
-      { valeur: 'UAPC', type: 'fixe', label: 'UAPC' },
-      { valeur: 'SIAEST', type: 'numero', label: 'SIA EST – Lit' },
-      { valeur: 'SIAOUEST', type: 'numero', label: 'SIA OUEST – Lit' },
-      { valeur: 'SIASUD', type: 'numero', label: 'SIA SUD – Lit' },
-      { valeur: 'SIPI', type: 'numero', label: 'SIPI – Box' },
-    ],
-    etages: Array.from({ length: 9 }, (_, i) => String(11 + i)) // 11 à 19
-  },
-  NES: {
-    prioritaires: [
-      { valeur: 'UHPA', type: 'fixe', label: 'UHPA' },
-    ],
-    avecEtage: true
-  },
-  BU44: {
-    prioritaires: [
-      { valeur: 'PLI', type: 'fixe', label: 'PLI' },
-    ],
-    avecEtage: false
-  },
-  MAT: { avecEtage: true },
-  HO:  { avecEtage: true },
-  HE:  { avecEtage: true },
-  BT:  { avecEtage: true },
-};
+const OPTIONS_NATEL = ['', ...Array.from({ length: 20 }, (_, i) => `SP${i + 1}`)];
+const OPTIONS_RISQUES_GARDE = ['', 'Auto', 'Hétéro', 'Fugue', 'Auto+Hétéro', 'Tous'];
 
-const BATIMENTS = ['BH', 'BU44', 'MAT', 'HO', 'HE', 'NES', 'BT'];
-const STATUTS_GARDE = ['Détenu', 'Prévenu', 'Patient'];
-
-// ─── Génération du select lieu contextuel ───────────────────────────────────
+// ─── Génération options lieu ─────────────────────────────────────────────────
 
 function genererOptionsLieu(batiment, lieuActuel = '') {
   const cfg = LIEUX_PAR_BATIMENT[batiment];
   let html = `<option value="">— Lieu —</option>`;
 
   if (!cfg) {
-    // Bâtiment saisi manuellement → saisie libre uniquement
     html += `<option value="__libre__"${lieuActuel === '__libre__' ? ' selected' : ''}>Saisie libre…</option>`;
     return html;
   }
 
-  // Options prioritaires
   if (cfg.prioritaires) {
     cfg.prioritaires.forEach(p => {
       const sel = lieuActuel === p.valeur ? ' selected' : '';
@@ -62,47 +30,21 @@ function genererOptionsLieu(batiment, lieuActuel = '') {
     });
   }
 
-  // Étages
   if (cfg.etages) {
     cfg.etages.forEach(e => {
-      const val = `etage-${e}`;
-      const sel = lieuActuel === val ? ' selected' : '';
-      html += `<option value="${val}"${sel}>Étage ${e} – chambre…</option>`;
+      const sel = lieuActuel === e.valeur ? ' selected' : '';
+      html += `<option value="${e.valeur}"${sel}>${escapeHtml(e.label)}</option>`;
     });
-  } else if (cfg.avecEtage) {
-    html += `<option value="etage-libre"${lieuActuel === 'etage-libre' ? ' selected' : ''}>Étage / chambre…</option>`;
   }
 
-  // Saisie libre toujours disponible en dernier
   html += `<option value="__libre__"${lieuActuel === '__libre__' ? ' selected' : ''}>Autre (saisie libre)</option>`;
   return html;
 }
 
-// Calcule le texte affiché final d'un lieu à partir de sa valeur interne + suffixe
-function labelLieu(batiment, lieuVal, suffixe) {
-  if (!lieuVal || lieuVal === '__libre__') return suffixe || '';
-  const cfg = LIEUX_PAR_BATIMENT[batiment];
-  if (!cfg) return [lieuVal, suffixe].filter(Boolean).join(' ');
+// ─── Suffixe contextuel ──────────────────────────────────────────────────────
 
-  if (cfg.prioritaires) {
-    const p = cfg.prioritaires.find(x => x.valeur === lieuVal);
-    if (p) {
-      if (p.type === 'fixe') return p.label;
-      return [p.label, suffixe].filter(Boolean).join(' ');
-    }
-  }
-  if (lieuVal.startsWith('etage-')) {
-    const etage = lieuVal.replace('etage-', '');
-    const prefixe = etage === 'libre' ? '' : `${batiment} ${etage}`;
-    return [prefixe, suffixe].filter(Boolean).join(' / ');
-  }
-  return [lieuVal, suffixe].filter(Boolean).join(' ');
-}
-
-// ─── Rendu du suffixe contextuel (lettre, select I1-I4, numéro, chambre) ────
-
-function renderSuffixe(batiment, lieuVal, suffixeActuel = '') {
-  if (!lieuVal || lieuVal === 'UAPC' || lieuVal === 'PLI' || lieuVal === 'UHPA') return '';
+function renderSuffixe(batiment, lieuVal, suffixeActuel = '', etageOption = '', suffixe2 = '') {
+  if (!lieuVal) return '';
   if (lieuVal === '__libre__') {
     return `<input type="text" class="garde-lieu-libre" placeholder="Lieu libre…" value="${escapeHtml(suffixeActuel)}" />`;
   }
@@ -112,9 +54,11 @@ function renderSuffixe(batiment, lieuVal, suffixeActuel = '') {
     return `<input type="text" class="garde-lieu-libre" placeholder="Précision…" value="${escapeHtml(suffixeActuel)}" />`;
   }
 
+  // Prioritaire fixe sans suffixe
   if (cfg.prioritaires) {
     const p = cfg.prioritaires.find(x => x.valeur === lieuVal);
     if (p) {
+      if (p.type === 'fixe') return '';
       if (p.type === 'lettre') {
         const lettres = (p.lettres || '').split('');
         return `<select class="garde-lieu-suffixe">
@@ -134,15 +78,33 @@ function renderSuffixe(batiment, lieuVal, suffixeActuel = '') {
     }
   }
 
-  // Étage → chambre
-  if (lieuVal.startsWith('etage-')) {
-    return `<input type="text" class="garde-lieu-suffixe" placeholder="Chambre" value="${escapeHtml(suffixeActuel)}" style="width:7rem" />`;
+  // Étage — afficher select option (chambre / soins interm.) puis suffixe
+  if (lieuVal.startsWith('etage-') && cfg.etageOptions) {
+    const optsHtml = cfg.etageOptions.map(o =>
+      `<option value="${o.valeur}"${etageOption === o.valeur ? ' selected' : ''}>${escapeHtml(o.label)}</option>`
+    ).join('');
+    let suffixeHtml = '';
+    const optSel = cfg.etageOptions.find(o => o.valeur === etageOption);
+    if (optSel) {
+      if (optSel.type === 'numero') {
+        suffixeHtml = `<input type="text" class="garde-lieu-suffixe2" inputmode="numeric" placeholder="N°" value="${escapeHtml(suffixeActuel)}" style="width:5rem" />`;
+      } else if (optSel.type === 'select') {
+        suffixeHtml = `<select class="garde-lieu-suffixe2">
+          <option value="">–</option>
+          ${optSel.options.map(o => `<option value="${o}"${suffixeActuel === o ? ' selected' : ''}>${o}</option>`).join('')}
+        </select>`;
+      }
+    }
+    return `<select class="garde-lieu-etage-option">
+      <option value="">— Type —</option>
+      ${optsHtml}
+    </select>${suffixeHtml}`;
   }
 
   return '';
 }
 
-// ─── Rendu principal du tableau ──────────────────────────────────────────────
+// ─── Rendu principal ─────────────────────────────────────────────────────────
 
 export function renderTableauGardes(container, service, onMaj) {
   const gardes = Array.isArray(service.gardes) ? service.gardes : [];
@@ -180,25 +142,29 @@ export function renderTableauGardes(container, service, onMaj) {
 }
 
 function renderLigneGarde(g, idx) {
-  const statut = g.statut || '';
-  const batiment = g.batiment || '';
-  const lieuVal = g.lieuVal || '';
-  const suffixe = g.lieuSuffixe || '';
-  const terminee = g.terminee === true;
-  const suspendue = g.suspendue === true;
+  const statut      = g.statut      || '';
+  const batiment    = g.batiment    || '';
+  const lieuVal     = g.lieuVal     || '';
+  const etageOption = g.etageOption || '';
+  const suffixe     = g.lieuSuffixe || '';
+  const natel       = g.natel       || '';
+  const risques     = g.risques     || '';
+  const terminee    = g.terminee    === true;
+  const suspendue   = g.suspendue   === true;
   const notesOuvertes = g.notesOuvertes === true;
 
   let classeRow = 'garde-row';
-  if (terminee) classeRow += ' garde-terminee';
+  if (terminee)  classeRow += ' garde-terminee';
   else if (suspendue) classeRow += ' garde-suspendue';
 
-  const suffixeHtml = renderSuffixe(batiment, lieuVal, suffixe);
-  const optionsLieu = genererOptionsLieu(batiment, lieuVal);
+  const suffixeHtml  = renderSuffixe(batiment, lieuVal, suffixe, etageOption);
+  const optionsLieu  = genererOptionsLieu(batiment, lieuVal);
 
   return `
     <tr class="${classeRow}" data-idx="${idx}">
       <td>
-        <input type="text" class="garde-input garde-nom" placeholder="NOM Prénom" value="${escapeHtml(g.nom || '')}" data-champ="nom" data-idx="${idx}" />
+        <input type="text" class="garde-input garde-nom" placeholder="NOM Prénom"
+          value="${escapeHtml(g.nom || '')}" data-champ="nom" data-idx="${idx}" />
       </td>
       <td>
         <select class="garde-select garde-statut" data-champ="statut" data-idx="${idx}">
@@ -209,11 +175,12 @@ function renderLigneGarde(g, idx) {
       <td>
         <select class="garde-select garde-batiment" data-champ="batiment" data-idx="${idx}">
           <option value="">–</option>
-          ${BATIMENTS.map(b => `<option value="${b}"${batiment === b ? ' selected' : ''}>${b}</option>`).join('')}
-          <option value="__autre__"${!BATIMENTS.includes(batiment) && batiment ? ' selected' : ''}>Autre…</option>
+          ${BATIMENTS_LISTE.map(b => `<option value="${b}"${batiment === b ? ' selected' : ''}>${b}</option>`).join('')}
+          <option value="__autre__"${!BATIMENTS_LISTE.includes(batiment) && batiment ? ' selected' : ''}>Autre…</option>
         </select>
-        ${!BATIMENTS.includes(batiment) && batiment
-          ? `<input type="text" class="garde-input garde-batiment-libre" placeholder="Bât." value="${escapeHtml(batiment)}" data-champ="batiment-libre" data-idx="${idx}" />`
+        ${!BATIMENTS_LISTE.includes(batiment) && batiment
+          ? `<input type="text" class="garde-input garde-batiment-libre" placeholder="Bât."
+               value="${escapeHtml(batiment)}" data-champ="batiment-libre" data-idx="${idx}" />`
           : ''}
       </td>
       <td class="garde-lieu-cell">
@@ -227,10 +194,14 @@ function renderLigneGarde(g, idx) {
         </div>
       </td>
       <td>
-        <input type="text" class="garde-input garde-natel" placeholder="SP1…" value="${escapeHtml(g.natel || '')}" data-champ="natel" data-idx="${idx}" />
+        <select class="garde-select garde-natel" data-champ="natel" data-idx="${idx}">
+          ${OPTIONS_NATEL.map(n => `<option value="${n}"${natel === n ? ' selected' : ''}>${n || '–'}</option>`).join('')}
+        </select>
       </td>
       <td>
-        <input type="text" class="garde-input garde-risques" placeholder="Risques" value="${escapeHtml(g.risques || '')}" data-champ="risques" data-idx="${idx}" />
+        <select class="garde-select garde-risques-select" data-champ="risques" data-idx="${idx}">
+          ${OPTIONS_RISQUES_GARDE.map(r => `<option value="${r}"${risques === r ? ' selected' : ''}>${r || '–'}</option>`).join('')}
+        </select>
       </td>
     </tr>
     <tr class="garde-icones-row${terminee ? ' garde-terminee' : suspendue ? ' garde-suspendue' : ''}" data-idx="${idx}">
@@ -246,29 +217,29 @@ function renderLigneGarde(g, idx) {
     ${notesOuvertes ? `
     <tr class="garde-notes-row" data-notes-idx="${idx}">
       <td colspan="6">
-        <textarea class="garde-notes-texte" placeholder="Notes transmises, observations…" data-champ="notes" data-idx="${idx}">${escapeHtml(g.notes || '')}</textarea>
+        <textarea class="garde-notes-texte" placeholder="Notes transmises, observations…"
+          data-champ="notes" data-idx="${idx}">${escapeHtml(g.notes || '')}</textarea>
       </td>
     </tr>` : ''}
   `;
 }
 
-// ─── Binding ─────────────────────────────────────────────────────────────────
+// ─── Binding ──────────────────────────────────────────────────────────────────
 
 function bindTableauGardes(container, service, onMaj) {
-  // Ajouter une garde
   container.querySelector('[data-action="ajouter-garde"]')?.addEventListener('click', async () => {
     const gardes = [...(service.gardes || [])];
     gardes.push({
-      nom: '', statut: '', batiment: '', lieuVal: '', lieuSuffixe: '',
+      nom: '', statut: '', batiment: '', lieuVal: '', etageOption: '', lieuSuffixe: '',
       natel: '', risques: '', notes: '', terminee: false, suspendue: false, notesOuvertes: false
     });
     await sauvegarderEtRerender(container, service, gardes, onMaj);
   });
 
-  // Inputs texte (nom, natel, risques)
+  // Inputs texte (nom + batiment-libre)
   container.querySelectorAll('.garde-input[data-champ]').forEach(input => {
     input.addEventListener('blur', async () => {
-      const idx = parseInt(input.dataset.idx, 10);
+      const idx   = parseInt(input.dataset.idx, 10);
       const champ = input.dataset.champ;
       const gardes = [...(service.gardes || [])];
       if (!gardes[idx]) return;
@@ -277,7 +248,6 @@ function bindTableauGardes(container, service, onMaj) {
     });
   });
 
-  // Bâtiment libre
   container.querySelectorAll('[data-champ="batiment-libre"]').forEach(input => {
     input.addEventListener('blur', async () => {
       const idx = parseInt(input.dataset.idx, 10);
@@ -288,24 +258,19 @@ function bindTableauGardes(container, service, onMaj) {
     });
   });
 
-  // Selects (statut, batiment, lieuVal)
+  // Selects principaux
   container.querySelectorAll('.garde-select').forEach(sel => {
     sel.addEventListener('change', async () => {
-      const idx = parseInt(sel.dataset.idx, 10);
+      const idx   = parseInt(sel.dataset.idx, 10);
       const champ = sel.dataset.champ;
       const gardes = [...(service.gardes || [])];
       if (!gardes[idx]) return;
 
       if (champ === 'batiment') {
         const val = sel.value;
-        if (val === '__autre__') {
-          // Affiche un input libre, rerender
-          gardes[idx] = { ...gardes[idx], batiment: '', lieuVal: '', lieuSuffixe: '' };
-        } else {
-          gardes[idx] = { ...gardes[idx], batiment: val, lieuVal: '', lieuSuffixe: '' };
-        }
+        gardes[idx] = { ...gardes[idx], batiment: val === '__autre__' ? '' : val, lieuVal: '', etageOption: '', lieuSuffixe: '' };
       } else if (champ === 'lieuVal') {
-        gardes[idx] = { ...gardes[idx], lieuVal: sel.value, lieuSuffixe: '' };
+        gardes[idx] = { ...gardes[idx], lieuVal: sel.value, etageOption: '', lieuSuffixe: '' };
       } else {
         gardes[idx] = { ...gardes[idx], [champ]: sel.value };
       }
@@ -313,24 +278,36 @@ function bindTableauGardes(container, service, onMaj) {
     });
   });
 
-  // Suffixe (select ou input)
-  container.querySelectorAll('.garde-lieu-suffixe, .garde-lieu-libre').forEach(el => {
+  // Select option étage (chambre / soins interm.)
+  container.querySelectorAll('.garde-lieu-etage-option').forEach(sel => {
+    sel.addEventListener('change', async () => {
+      const wrap  = sel.closest('[data-idx]') || sel.closest('tr');
+      const idx   = parseInt(wrap?.dataset?.idx, 10);
+      if (isNaN(idx)) return;
+      const gardes = [...(service.gardes || [])];
+      if (!gardes[idx]) return;
+      gardes[idx] = { ...gardes[idx], etageOption: sel.value, lieuSuffixe: '' };
+      await sauvegarderEtRerender(container, service, gardes, onMaj);
+    });
+  });
+
+  // Suffixes (select lettre/I1-I4, input numérique, saisie libre, suffixe2)
+  container.querySelectorAll('.garde-lieu-suffixe, .garde-lieu-libre, .garde-lieu-suffixe2').forEach(el => {
     const evt = el.tagName === 'SELECT' ? 'change' : 'blur';
     el.addEventListener(evt, async () => {
-      const wrap = el.closest('[data-idx]') || el.parentElement?.closest('[data-idx]') || el.closest('td')?.closest('tr');
-      const idx = parseInt(wrap?.dataset?.idx ?? el.closest('tr')?.dataset?.idx, 10);
+      const wrap = el.closest('tr[data-idx]') || el.closest('[data-idx]');
+      const idx  = parseInt(wrap?.dataset?.idx, 10);
       if (isNaN(idx)) return;
       const gardes = [...(service.gardes || [])];
       if (!gardes[idx]) return;
       gardes[idx] = { ...gardes[idx], lieuSuffixe: el.value };
-      // Pas de rerender complet pour éviter de perdre le focus — juste sauvegarder
       service.gardes = gardes;
       const serviceMaj = await majService(service.id, { gardes });
       if (onMaj) onMaj(serviceMaj || service);
     });
   });
 
-  // Notes (textarea)
+  // Notes textarea
   container.querySelectorAll('.garde-notes-texte').forEach(ta => {
     ta.addEventListener('blur', async () => {
       const idx = parseInt(ta.dataset.idx, 10);
@@ -341,35 +318,28 @@ function bindTableauGardes(container, service, onMaj) {
       await majService(service.id, { gardes });
       if (onMaj) onMaj(service);
     });
-    // Auto-resize
     const adj = () => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; };
     ta.addEventListener('input', adj);
     setTimeout(adj, 0);
   });
 
-  // Icônes : notes toggle, terminer, suspendre, supprimer
+  // Icônes
   container.querySelectorAll('[data-action]').forEach(btn => {
     const action = btn.dataset.action;
     if (!['notes', 'terminer', 'suspendre', 'supprimer'].includes(action)) return;
-
     btn.addEventListener('click', async () => {
-      const idx = parseInt(btn.dataset.idx, 10);
+      const idx    = parseInt(btn.dataset.idx, 10);
       const gardes = [...(service.gardes || [])];
       if (!gardes[idx] && action !== 'supprimer') return;
-
       if (action === 'notes') {
         gardes[idx] = { ...gardes[idx], notesOuvertes: !gardes[idx].notesOuvertes };
       } else if (action === 'terminer') {
-        // Toggle : si déjà terminée, on remet en actif
-        const etaitTerminee = gardes[idx].terminee;
-        gardes[idx] = { ...gardes[idx], terminee: !etaitTerminee, suspendue: false };
+        gardes[idx] = { ...gardes[idx], terminee: !gardes[idx].terminee, suspendue: false };
       } else if (action === 'suspendre') {
-        const etaitSuspendue = gardes[idx].suspendue;
-        gardes[idx] = { ...gardes[idx], suspendue: !etaitSuspendue, terminee: false };
+        gardes[idx] = { ...gardes[idx], suspendue: !gardes[idx].suspendue, terminee: false };
       } else if (action === 'supprimer') {
         gardes.splice(idx, 1);
       }
-
       await sauvegarderEtRerender(container, service, gardes, onMaj);
     });
   });
