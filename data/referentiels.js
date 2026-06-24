@@ -16,6 +16,7 @@ export const STATUTS_REFERENCE = [
   { id: 'garde-tech',     label: 'Garde technique',    prefixe: 'Garde tech.',   requiresName: true  },
   { id: 'chef-interv',    label: 'Chef d\'intervention', prefixe: 'Chef interv.', requiresName: true },
   { id: 'emp',            label: 'Employé CHUV',       prefixe: 'Emp.',          requiresName: true  },
+  { id: 'body-packer',    label: 'Body packer',        prefixe: 'Body pack.',    requiresName: true  },
   { id: 'inconnu',        label: 'Inconnu (homme)',    literal: 'Inconnu',       requiresName: false },
   { id: 'inconnue',       label: 'Inconnue (femme)',   literal: 'Inconnue',      requiresName: false }
 ];
@@ -212,6 +213,140 @@ export const CHAMPS_RAPPORT_FEU = [
   { id: 'intervention',              label: 'Intervention' },
   { id: 'remarque',                  label: 'Remarque' }
 ];
+
+// ─── Cascade lieux (partagée gardes + intervention-edit) ────────────────────
+
+export const BATIMENTS_LISTE = ['BH', 'BU44', 'MAT', 'HO', 'HE', 'NES', 'BT'];
+
+// Statuts utilisés dans le tableau des gardes
+export const STATUTS_GARDE = ['Body packer', 'Détenu', 'Patient', 'Prévenu'];
+
+export const LIEUX_PAR_BATIMENT = {
+  BH: {
+    // Unités spéciales au 05
+    prioritaires: [
+      { valeur: 'URGC',     type: 'lettre',  lettres: 'ABCDEFGHIJKLM',        label: 'URGC',  prefixe: 'BH/05/URGC-' },
+      { valeur: 'URGA',     type: 'lettre',  lettres: 'NOPQRSTUVWXYZ',        label: 'URGA',  prefixe: 'BH/05/URGA-' },
+      { valeur: 'URGO',     type: 'select',  options: ['I1','I2','I3','I4'],   label: 'URGO',  prefixe: 'BH/05/URGO-' },
+      { valeur: 'UAPC',     type: 'fixe',                                      label: 'UAPC',  prefixe: 'BH/05/UAPC'  },
+      { valeur: 'ADMC',     type: 'fixe',                                      label: 'ADMC',  prefixe: 'BH/05/ADMC'  },
+      { valeur: 'SIAEST',   type: 'numero',                                    label: 'SIA EST',   prefixe: 'BH/05/SIA EST-'   },
+      { valeur: 'SIAOUEST', type: 'numero',                                    label: 'SIA OUEST', prefixe: 'BH/05/SIA OUEST-' },
+      { valeur: 'SIASUD',   type: 'numero',                                    label: 'SIA SUD',   prefixe: 'BH/05/SIA SUD-'   },
+      { valeur: 'SIPI',     type: 'numero',                                    label: 'SIPI',      prefixe: 'BH/05/SIPI-'      },
+    ],
+    // Étages 11–19 : chambre libre OU soins intermédiaires (lit 1–20)
+    etages: Array.from({ length: 9 }, (_, i) => ({
+      valeur: `etage-${11 + i}`,
+      label:  `Étage ${11 + i}`,
+      numero: String(11 + i),
+    })),
+    etageOptions: [
+      { valeur: 'chambre', label: 'Chambre (n°)', type: 'numero' },
+      { valeur: 'sint',    label: 'Soins interm.', type: 'select',
+        options: Array.from({ length: 20 }, (_, i) => String(i + 1)) },
+    ],
+  },
+  BU44: {
+    prioritaires: [
+      { valeur: 'PLI',     type: 'fixe',  label: 'PLI',     prefixe: 'BU44/07/PLI'     },
+      { valeur: 'dialyse', type: 'fixe',  label: 'Dialyse', prefixe: 'BU44/07/Dialyse' },
+    ],
+    etages: Array.from({ length: 6 }, (_, i) => ({
+      valeur: `etage-${String(i + 3).padStart(2,'0')}`,
+      label:  `Étage ${String(i + 3).padStart(2,'0')}`,
+      numero: String(i + 3).padStart(2,'0'),
+    })),
+    etageOptions: [
+      { valeur: 'chambre', label: 'Chambre (n°)', type: 'numero' },
+    ],
+  },
+  NES: {
+    prioritaires: [
+      { valeur: 'UHPA', type: 'fixe', label: 'UHPA', prefixe: 'NES/UHPA' },
+    ],
+    etages: Array.from({ length: 10 }, (_, i) => ({
+      valeur: `etage-${String(i + 1).padStart(2,'0')}`,
+      label:  `Étage ${String(i + 1).padStart(2,'0')}`,
+      numero: String(i + 1).padStart(2,'0'),
+    })),
+    etageOptions: [
+      { valeur: 'chambre', label: 'Chambre (n°)', type: 'numero' },
+    ],
+  },
+  MAT: {
+    etages: Array.from({ length: 10 }, (_, i) => ({
+      valeur: `etage-${String(i + 1).padStart(2,'0')}`,
+      label:  `Étage ${String(i + 1).padStart(2,'0')}`,
+      numero: String(i + 1).padStart(2,'0'),
+    })),
+    etageOptions: [
+      { valeur: 'chambre', label: 'Chambre (n°)', type: 'numero' },
+    ],
+  },
+  HO: {
+    etages: Array.from({ length: 10 }, (_, i) => ({
+      valeur: `etage-${String(i + 1).padStart(2,'0')}`,
+      label:  `Étage ${String(i + 1).padStart(2,'0')}`,
+      numero: String(i + 1).padStart(2,'0'),
+    })),
+    etageOptions: [
+      { valeur: 'chambre', label: 'Chambre (n°)', type: 'numero' },
+    ],
+  },
+  HE: {
+    etages: Array.from({ length: 10 }, (_, i) => ({
+      valeur: `etage-${String(i + 1).padStart(2,'0')}`,
+      label:  `Étage ${String(i + 1).padStart(2,'0')}`,
+      numero: String(i + 1).padStart(2,'0'),
+    })),
+    etageOptions: [
+      { valeur: 'chambre', label: 'Chambre (n°)', type: 'numero' },
+    ],
+  },
+  BT: {
+    etages: Array.from({ length: 10 }, (_, i) => ({
+      valeur: `etage-${String(i + 1).padStart(2,'0')}`,
+      label:  `Étage ${String(i + 1).padStart(2,'0')}`,
+      numero: String(i + 1).padStart(2,'0'),
+    })),
+    etageOptions: [
+      { valeur: 'chambre', label: 'Chambre (n°)', type: 'numero' },
+    ],
+  },
+};
+
+// Calcule la chaîne lieu finale (ex: "BH/05/URGO-I2", "BH/11/Soins interm./3")
+export function composerLieu(batiment, lieuVal, etageOption, suffixe) {
+  if (!batiment) return '';
+  if (lieuVal === '__libre__') return suffixe || '';
+  const cfg = LIEUX_PAR_BATIMENT[batiment];
+  if (!cfg) return [batiment, suffixe].filter(Boolean).join('/');
+
+  // Prioritaire (unité spéciale)
+  if (cfg.prioritaires) {
+    const p = cfg.prioritaires.find(x => x.valeur === lieuVal);
+    if (p) {
+      if (p.type === 'fixe') return p.prefixe;
+      return suffixe ? `${p.prefixe}${suffixe}` : p.prefixe;
+    }
+  }
+
+  // Étage
+  if (lieuVal && lieuVal.startsWith('etage-')) {
+    const etageObj = (cfg.etages || []).find(e => e.valeur === lieuVal);
+    const etageNum = etageObj ? etageObj.numero : lieuVal.replace('etage-','');
+    const etageLabel = etageNum.padStart(2,'0');
+    if (!etageOption) return `${batiment}/${etageLabel}`;
+    if (etageOption === 'sint') {
+      return suffixe ? `${batiment}/${etageLabel}/S.int/${suffixe}` : `${batiment}/${etageLabel}/S.int`;
+    }
+    // chambre
+    return suffixe ? `${batiment}/${etageLabel}/${suffixe}` : `${batiment}/${etageLabel}`;
+  }
+
+  return batiment;
+}
 
 // Lieux pré-chargés au premier lancement
 export const LIEUX_PRECHARGES = [
