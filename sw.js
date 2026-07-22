@@ -1,5 +1,5 @@
-// Service Worker — Slice 4 V2
-const CACHE_VERSION = 'rapports-chuv-v1-test-013';
+// Service Worker — Slice 5 Intervention + Transfert
+const CACHE_VERSION = 'rapports-chuv-v1-test-014';
 
 const ASSETS = [
   './',
