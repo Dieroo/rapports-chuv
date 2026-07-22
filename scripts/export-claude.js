@@ -140,10 +140,12 @@ export async function genererPivotIntervention(intervention) {
   lignes.push('');
   lignes.push(`[CHRONOLOGIE]`);
 
-  if (entrees.length === 0) {
+  const entreesRapport = entrees.filter(e => !e.horsRapport);
+
+  if (entreesRapport.length === 0) {
     lignes.push('(aucune entrée chronologique)');
   } else {
-    entrees.forEach(e => {
+    entreesRapport.forEach(e => {
       lignes.push(`${fmtHeure(e.heure)} — ${e.texte || ''}`);
     });
   }
