@@ -478,3 +478,97 @@
   gap: var(--sp-2);
   margin-top: var(--sp-2);
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   ICÔNES INTERVENTION & TRANSFERT
+   ═══════════════════════════════════════════════════════════════════ */
+
+.icone-intervention { opacity: .75; }
+.icone-intervention:hover { opacity: 1; filter: drop-shadow(0 0 3px #dc2626); }
+
+.icone-transfert { opacity: .65; }
+.icone-transfert:hover { opacity: 1; filter: drop-shadow(0 0 3px #3b82f6); }
+
+.icone-retour {
+  opacity: 1;
+  font-size: 1.1rem;
+  color: var(--rouge, #dc2626);
+  filter: drop-shadow(0 0 3px #dc2626);
+  animation: pulse-retour 2s ease-in-out infinite;
+}
+
+@keyframes pulse-retour {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .5; }
+}
+
+/* Dialog transfert — choix type */
+.dialog-actions-choix {
+  display: flex;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+/* Dialog cascade lieu (réutilise .lieu-inline etc.) */
+.dialog-lieu-cascade {
+  margin-top: var(--sp-2);
+}
+
+.dialog-lieu-cascade .lieu-inline {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: nowrap;
+}
+
+.dialog-lieu-cascade select,
+.dialog-lieu-cascade input {
+  font-size: .85rem;
+  height: 34px;
+}
+
+.dialog-lieu-cascade .dlieu-col1 {
+  width: 80px;
+  padding: 2px 4px;
+  background: var(--fond);
+  color: var(--texte);
+  border: 1px solid var(--bordure, var(--bord));
+  border-radius: var(--radius-sm);
+}
+.dialog-lieu-cascade .dlieu-col2 {
+  width: 80px;
+  padding: 2px 4px;
+  background: var(--fond);
+  color: var(--texte);
+  border: 1px solid var(--bordure, var(--bord));
+  border-radius: var(--radius-sm);
+}
+.dialog-lieu-cascade .dlieu-libre {
+  width: 100%;
+  margin-top: 3px;
+  padding: 3px var(--sp-2);
+  font-family: var(--font-mono, monospace);
+  background: var(--fond);
+  color: var(--texte);
+  border: 1px dashed var(--bordure, #ccc);
+  border-radius: var(--radius-sm);
+}
+
+/* Entrée hors rapport (transfert pour examen) */
+.entree-hors-rapport {
+  border-left: 3px solid #a855f7 !important;
+  opacity: .7;
+  position: relative;
+}
+.entree-hors-rapport::after {
+  content: 'hors rapport';
+  position: absolute;
+  top: var(--sp-1);
+  right: var(--sp-2);
+  font-size: .65rem;
+  color: #a855f7;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
