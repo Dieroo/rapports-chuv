@@ -69,6 +69,18 @@ db.version(5).stores({
   });
 });
 
+// Version 6 — Champ horsRapport sur les entrées (transferts pour examen)
+db.version(6).stores({
+  services:             '++id, poste, debut, fin',
+  interventions:        '++id, serviceId, debut, fin, lieu, referenceStatut',
+  entrees:              '++id, interventionId, heure',
+  tachesRecurrentes:    '++id, &texte, compteur, derniereUtilisation, epinglee'
+}).upgrade(async (tx) => {
+  await tx.table('entrees').toCollection().modify(e => {
+    if (e.horsRapport == null) e.horsRapport = false;
+  });
+});
+
 // === Services ===
 
 export async function getServiceOuvert() {
