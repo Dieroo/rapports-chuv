@@ -1171,7 +1171,7 @@ function renderFilChrono(entrees) {
       <div class="bloc-titre">Fil chronologique <span class="bloc-titre-aide">${entrees.length} entrée${entrees.length > 1 ? 's' : ''}</span></div>
       <ol class="entrees">
         ${entrees.map(e => `
-          <li class="entree" data-id="${e.id}">
+          <li class="entree${e.horsRapport ? ' entree-hors-rapport' : ''}" data-id="${e.id}">
             <div class="entree-tete">
               <div class="entree-datetime">
                 <span class="entree-date-label">${escapeHtml(formatDateEntree(e.heure))}</span>
@@ -1348,7 +1348,7 @@ function bindCopies(posteMoi) {
       } else if (type === 'description') {
         texte = i.description || '';
       } else if (type === 'rapport') {
-        texte = etat.entrees.map(e => `${formatHeure(e.heure)} — ${e.texte}`).join('\n');
+        texte = etat.entrees.filter(e => !e.horsRapport).map(e => `${formatHeure(e.heure)} — ${e.texte}`).join('\n');
       }
 
       if (!texte) return;
